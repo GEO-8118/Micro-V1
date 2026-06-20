@@ -264,6 +264,7 @@
                     <a href="{{ route('courses.browse') }}">View All</a>
                 </div>
                 @forelse (($activeCourses ?? []) as $course)
+                    @php /** @var object{title:string,meta:?string,thumbnail_url:?string,percent:int|float} $course */ @endphp
                     <div class="course-line">
                         <div class="course-thumb-sm" @if($course->thumbnail_url ?? null) style="background-image:url('{{ $course->thumbnail_url }}')" @endif></div>
                         <div class="course-line-info">
@@ -285,6 +286,7 @@
                 </div>
                 <div class="badges-mini-grid">
                     @forelse (($recentBadges ?? []) as $badge)
+                        @php /** @var object{name:string,earned_count:int} $badge */ @endphp
                         <div class="badge-mini-card">
                             <div class="name">{{ $badge->name }}</div>
                             <div class="count">{{ $badge->earned_count }} Earned</div>
@@ -305,6 +307,7 @@
                     <h3>Enrollment by Courses</h3>
                 </div>
                 @forelse (($enrollmentByCourse ?? []) as $row)
+                    @php /** @var object{label:string,value:int|float,percent:int|float} $row */ @endphp
                     <div class="metric-row">
                         <div class="label">{{ $row->label }} -{{ $row->value }}</div>
                         <div class="metric-track"><div class="metric-fill" style="width:{{ $row->percent }}%"></div></div>
@@ -319,6 +322,7 @@
                     <h3>Completion Rate</h3>
                 </div>
                 @forelse (($completionRate ?? []) as $row)
+                    @php /** @var object{label:string,value:int|float,percent:int|float} $row */ @endphp
                     <div class="metric-row">
                         <div class="label">{{ $row->label }} - {{ $row->value }}%</div>
                         <div class="metric-track"><div class="metric-fill" style="width:{{ $row->percent }}%"></div></div>

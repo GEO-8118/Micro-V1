@@ -50,9 +50,8 @@
     .brand{display:flex;align-items:center;gap:14px;color:#fff;white-space:nowrap;}
     .brand .logo{width:46px;height:46px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
     .brand .logo svg{width:30px;height:30px;}
-    .nav-pills{display:flex;gap:14px;...}
-    .brand h1{font-size:24px;letter-spacing:1px;margin:0;font-weight:800;}
     .brand .logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;padding:3px;}
+    .brand h1{font-size:24px;letter-spacing:1px;margin:0;font-weight:800;}
     .nav-pills{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto;}
     .nav-pills a{background:#fff;color:var(--navy);font-weight:700;padding:10px 26px;border-radius:999px;font-size:15px;}
     .nav-pills a.is-active{outline:2px solid var(--cyan);}
@@ -126,7 +125,7 @@
 <header class="topbar">
     <div class="brand">
         <span class="logo">
-          <img src="{{ asset('images/PSU-Logo.png') }}" alt="PSU Logo">
+            <img src="{{ asset('images/PSU-Logo.png') }}" alt="PSU Logo">
         </span>
         <h1>UPSKILL</h1>
     </div>
@@ -303,6 +302,7 @@
                     </div>
                     <div class="panel-body">
                         @forelse ($badges ?? [] as $badge)
+                            @php /** @var object{name:string}|string $badge */ @endphp
                             <p>{{ $badge->name ?? $badge }}</p>
                         @empty
                             <p>No badges earned yet.</p>
