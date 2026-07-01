@@ -36,6 +36,109 @@ Route::get('/', fn() => view('Homepage'))->name('Homepage');
 Route::get('/login', fn() => view('login'))->name('login');
 Route::get('/register', fn() => view('register'))->name('register');
 
+// ══════════════════════════════════════════════════════════════════════════
+// ADMIN ROUTES
+// ══════════════════════════════════════════════════════════════════════════
+
+// Admin Main Dashboard — accessible at /Admin-dashboard
+Route::get('/Admin-dashboard', function () {
+    return view('Admin_Main_Home', [
+        'stats' => [
+            'total_students'    => 402,
+            'badges_issued'     => 217,
+            'course_score_avg'  => 99.7,
+            'students_enrolled' => 392,
+        ],
+        'activeCourses' => collect([
+            (object) ['title' => 'Introduction to Artificial Intelligence', 'meta' => '48 Students · 4 Faculty', 'thumbnail_url' => null, 'percent' => 62],
+            (object) ['title' => 'Database Fundamentals',                   'meta' => '63 Students · 2 Faculty', 'thumbnail_url' => null, 'percent' => 70],
+            (object) ['title' => 'Introduction to Artificial Intelligence', 'meta' => '48 Students · 4 Faculty', 'thumbnail_url' => null, 'percent' => 85],
+            (object) ['title' => 'Database Fundamentals',                   'meta' => '63 Students · 2 Faculty', 'thumbnail_url' => null, 'percent' => 62],
+        ]),
+        'recentBadges' => collect([
+            (object) ['name' => 'Database Earned', 'earned_count' => 41],
+            (object) ['name' => 'AI Pioneer',      'earned_count' => 29],
+            (object) ['name' => 'Web Wizard',      'earned_count' => 38],
+            (object) ['name' => 'Certified Pro',   'earned_count' => 15],
+        ]),
+        'enrollmentByCourse' => collect([
+            (object) ['label' => 'Database Fund', 'value' => 63, 'percent' => 100],
+            (object) ['label' => 'Web Dev Boot',  'value' => 57, 'percent' => 90],
+            (object) ['label' => 'Intro to AI',   'value' => 48, 'percent' => 76],
+            (object) ['label' => 'ML Essentials', 'value' => 34, 'percent' => 54],
+        ]),
+        'completionRate' => collect([
+            (object) ['label' => 'Database Fund', 'value' => 91, 'percent' => 91],
+            (object) ['label' => 'Web Dev Boot',  'value' => 84, 'percent' => 84],
+            (object) ['label' => 'Intro to AI',   'value' => 77, 'percent' => 77],
+            (object) ['label' => 'ML Essentials', 'value' => 62, 'percent' => 62],
+        ]),
+    ]);
+})->name('admin.dashboard');
+
+// Admin User Management — accessible at /Admin-usermanagement
+Route::get('/Admin-usermanagement', function () {
+    return view('Admin_Management_UserManage', [
+        'courses' => collect([
+            (object) ['title' => 'Web Development Fundamentals',  'faculty' => 'Mr. Dalisay', 'students' => 200, 'badge_status' => 'Active',  'publish_status' => 'Published'],
+            (object) ['title' => 'Data Management Essentials',    'faculty' => 'Mr. Fajardo', 'students' => 75,  'badge_status' => 'Active',  'publish_status' => 'Published'],
+            (object) ['title' => 'IT Projects Management',        'faculty' => 'Mr. Ferrer',  'students' => 75,  'badge_status' => 'Pending', 'publish_status' => 'Draft'],
+            (object) ['title' => 'Computer Organization Basics',  'faculty' => 'Mr. Tamayo',  'students' => 75,  'badge_status' => 'Active',  'publish_status' => 'Published'],
+        ]),
+    ]);
+})->name('admin.usermanagement');
+
+// ══════════════════════════════════════════════════════════════════════════
+// Admin › Courses & Badges  —  standalone admin management page
+// URL: /Admin-courses      Route name: admin.courses
+// Self-contained: it does NOT link to, share with, or redirect into any
+// student view. This is the admin surface for managing courses & badges.
+// View: resources/views/Admin_Management_Course_&_Badges.blade.php
+// Card fields: id, title, students, faculty, badge, percent, selected
+// ══════════════════════════════════════════════════════════════════════════
+Route::get('/Admin-courses', function () {
+    return view('Admin_Management_Course_&_Badges', [
+        'courses' => collect([
+            (object) ['id' => 1, 'title' => 'Introduction to Artificial Intelligence', 'students' => 48, 'faculty' => 4, 'badge' => 'AI Pioneer', 'percent' => 84],
+            (object) ['id' => 2, 'title' => 'Database Fundamentals',                    'students' => 48, 'faculty' => 4, 'badge' => 'AI Pioneer', 'percent' => 91],
+            (object) ['id' => 3, 'title' => 'Web Development',                           'students' => 48, 'faculty' => 4, 'badge' => 'AI Pioneer', 'percent' => 84],
+            (object) ['id' => 4, 'title' => 'Machine Learning Essentials',              'students' => 48, 'faculty' => 4, 'badge' => 'AI Pioneer', 'percent' => 91],
+        ]),
+    ]);
+})->name('admin.courses');
+
+// ══════════════════════════════════════════════════════════════════════════
+// Admin › Analytics › Report  —  standalone admin analytics page
+// URL: /Admin-report       Route name: admin.report
+// Self-contained: it does NOT link to, share with, or redirect into any
+// student view. This is the admin analytics / reporting surface.
+// View: resources/views/Admin_Analytics_Report.blade.php
+// ══════════════════════════════════════════════════════════════════════════
+Route::get('/Admin-report', function () {
+    return view('Admin_Analytics_Report', [
+        'stats' => [
+            'total_students'   => 402,
+            'badges_issued'    => 217,
+            'faculty_total'    => 17,
+            'course_score_avg' => 99.88,
+        ],
+        // enrollment: bar width is value ÷ highest value (63) × 100
+        'enrollmentByCourse' => collect([
+            (object) ['label' => 'Database Fund', 'value' => 63, 'percent' => 100],
+            (object) ['label' => 'Web Dev Boot',  'value' => 57, 'percent' => 90],
+            (object) ['label' => 'Intro to AI',   'value' => 48, 'percent' => 76],
+            (object) ['label' => 'ML Essentials', 'value' => 34, 'percent' => 54],
+        ]),
+        // completion: bar width equals the percentage value
+        'completionRate' => collect([
+            (object) ['label' => 'Database Fund', 'value' => 91, 'percent' => 91],
+            (object) ['label' => 'Web Dev Boot',  'value' => 84, 'percent' => 84],
+            (object) ['label' => 'Intro to AI',   'value' => 77, 'percent' => 77],
+            (object) ['label' => 'ML Essentials', 'value' => 62, 'percent' => 62],
+        ]),
+    ]);
+})->name('admin.report');
+
 // --- TEMPORARY stubs (remove once real routes exist) ---
 foreach ([
     'home',
@@ -47,7 +150,7 @@ foreach ([
     }
 }
 
-// ✅ "Courses" nav button now goes to Browse Courses instead of blank stub
+// Student "Courses" convenience route → student Browse Courses (student side only)
 Route::get('/courses', fn() => redirect()->route('courses.browse'))->name('courses.index');
 
 Route::get('/preview-dashboard', function () {
