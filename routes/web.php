@@ -528,3 +528,604 @@ Route::get('/analytics', function () {
         ]),
     ]);
 })->name('analytics.index');
+// ══════════════════════════════════════════════════════════════════════════
+// FACULTY ROUTES
+// ══════════════════════════════════════════════════════════════════════════
+
+// Faculty Dashboard — accessible at /Faculty-dashboard
+// ⚠ STANDALONE PAGE: not connected to any other page or route.
+//   Every button/link inside the view is a placeholder (href="#" or a
+//   plain <button>) — nothing here links into student or admin pages.
+// View: resources/views/Faculty_dashboard.blade.php
+Route::get('/Faculty-dashboard', function () {
+    return view('Faculty_dashboard', [
+        'user' => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'stats' => [
+            'total_courses'  => 5,
+            'published'      => 3,
+            'total_students' => 5,
+            'enrollments'    => 7,
+        ],
+        'courses' => collect([
+            (object) [
+                'title'          => 'Full - Stack Web Development with Laravel',
+                'status'         => 'Published',
+                'students_count' => 4,
+                'modules_count'  => 2,
+                'thumbnail_url'  => null,
+            ],
+            (object) [
+                'title'          => 'Introduction to Computing',
+                'status'         => 'Draft',
+                'students_count' => 0,
+                'modules_count'  => 1,
+                'thumbnail_url'  => null,
+            ],
+        ]),
+    ]);
+})->name('faculty.dashboard');
+
+// ── Faculty dummy course data (shared by the routes below) ────────────────
+// One source of truth so the Manage screen always shows the SAME course
+// that was clicked on the My Courses list. Courses created via the
+// Create Courses form are stored in the session (key 'faculty_courses')
+// and merged in. Replace all of this with DB queries later.
+if (! function_exists('facultyDummyCourses')) {
+    function facultyDummyCourses(): array
+    {
+        return [
+            1 => (object) [
+                'id'             => 1,
+                'title'          => 'Introduction to Artificial Intelligence',
+                'description'    => 'Explore the Fundamentals of Artificial Intelligence, machine learning algorithms and their Real - world applications',
+                'status'         => 'Published',
+                'level'          => 'Intermediate',
+                'students_count' => 4,
+                'modules_count'  => 1,
+                'lessons_count'  => 1,
+                'thumbnail_url'  => null,
+            ],
+            2 => (object) [
+                'id'             => 2,
+                'title'          => 'Introduction to Computing',
+                'description'    => 'Explore the Fundamentals of Artificial Intelligence, machine learning algorithms and their Real - world applications',
+                'status'         => 'Published',
+                'level'          => 'Beginner',
+                'students_count' => 4,
+                'modules_count'  => 1,
+                'lessons_count'  => 1,
+                'thumbnail_url'  => null,
+            ],
+            3 => (object) [
+                'id'             => 3,
+                'title'          => 'Full - Stack Web Development',
+                'description'    => 'Explore the Fundamentals of Artificial Intelligence, machine learning algorithms and their Real - world applications',
+                'status'         => 'Published',
+                'level'          => 'Intermediate',
+                'students_count' => 4,
+                'modules_count'  => 1,
+                'lessons_count'  => 1,
+                'thumbnail_url'  => null,
+            ],
+            4 => (object) [
+                'id'             => 4,
+                'title'          => 'Laravel Fundamentals',
+                'description'    => 'Explore the Fundamentals of Artificial Intelligence, machine learning algorithms and their Real - world applications',
+                'status'         => 'Published',
+                'level'          => 'Intermediate',
+                'students_count' => 4,
+                'modules_count'  => 1,
+                'lessons_count'  => 1,
+                'thumbnail_url'  => null,
+            ],
+            5 => (object) [
+                'id'             => 5,
+                'title'          => 'Introduction to Computing',
+                'description'    => 'Explore the Fundamentals of Artificial Intelligence, machine learning algorithms and their Real - world applications',
+                'status'         => 'Published',
+                'level'          => 'Beginner',
+                'students_count' => 4,
+                'modules_count'  => 1,
+                'lessons_count'  => 1,
+                'thumbnail_url'  => null,
+            ],
+        ];
+    }
+}
+
+// All faculty courses: dummy seed + any created via the Create Courses form
+if (! function_exists('facultyAllCourses')) {
+    function facultyAllCourses(): array
+    {
+        $all = facultyDummyCourses();
+        foreach (session('faculty_courses', []) as $id => $data) {
+            $all[$id] = (object) $data;
+        }
+        return $all;
+    }
+}
+
+// Faculty › My Courses — accessible at /Faculty-mycourses
+// ⚠ STANDALONE: only connected within the faculty side. Every other
+//   button/link is a placeholder.
+// View: resources/views/Faculty_My_Courses.blade.php  (mode: 'list')
+Route::get('/Faculty-mycourses', function () {
+    return view('Faculty_My_Courses', [
+        'mode'    => 'list',
+        'user'    => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'courses' => collect(facultyAllCourses())->values(),
+    ]);
+})->name('faculty.courses');
+
+// Faculty › My Courses › Manage — /Faculty-mycourses/manage/{id}
+// Shown after clicking a course's "Manage" button, and right after a new
+// course is saved from the Create Courses form. Renders the SAME
+// Faculty_My_Courses blade in 'manage' mode (no separate blade file).
+// Newly created courses have NO modules / students / quiz data yet, so
+// the view shows: "No Students enrolled yet", "No Modules yet".
+// ⚠ All buttons/inputs inside are placeholders — not wired up yet.
+Route::get('/Faculty-mycourses/manage/{id}', function ($id) {
+    $allCourses = facultyAllCourses();
+    $course     = $allCourses[$id] ?? $allCourses[1];   // fallback to course 1
+
+    // Seed courses (id 1-5) get the dummy modules/students below;
+    // courses created via the form start completely empty.
+    $isSeedCourse = array_key_exists($course->id, facultyDummyCourses());
+
+    $modules = $isSeedCourse ? collect([
+        (object) [
+            'title'    => 'Laravel Fundamentals',
+            'subtitle' => 'Core concepts of Laravel Framework',
+            'lessons'  => collect([
+                (object) ['title' => 'Introduction to Laravel', 'meta' => 'Video · 15m', 'thumbnail_url' => null],
+                (object) ['title' => 'Routing and Controllers', 'meta' => 'Text · 15m',  'thumbnail_url' => null],
+                (object) ['title' => 'Blade Templates',         'meta' => 'Text · 15m',  'thumbnail_url' => null],
+            ]),
+            'quiz' => (object) [
+                'title'           => 'Laravel Fundamentals Quiz',
+                'questions_count' => 3,
+                'passing_score'   => 75,
+            ],
+        ],
+        (object) [
+            'title'    => 'Database & Eloquent ORM',
+            'subtitle' => 'Master database interactions with Eloquent',
+            'lessons'  => collect([
+                (object) ['title' => 'Migrations and Schema',  'meta' => 'Video · 15m', 'thumbnail_url' => null],
+                (object) ['title' => 'Eloquent Relationships', 'meta' => 'Test · 25m',  'thumbnail_url' => null],
+            ]),
+            'quiz' => (object) [
+                'title'           => 'Database & Eloquent ORM',
+                'questions_count' => 3,
+                'passing_score'   => 75,
+            ],
+        ],
+    ]) : collect();
+
+    $students = $isSeedCourse ? collect([
+        (object) ['name' => 'Kurt Palavino', 'student_id' => '22 - LN - 0712', 'status' => 'Active',    'avatar_url' => null],
+        (object) ['name' => 'Anna Reyes',    'student_id' => '21 - LN - 0789', 'status' => 'Completed', 'avatar_url' => null],
+        (object) ['name' => 'Mike Abdul',    'student_id' => '22 - LN - 9856', 'status' => 'Completed', 'avatar_url' => null],
+    ]) : collect();
+
+    $quizAverages = $isSeedCourse ? collect([
+        (object) ['title' => 'Database ORM Quiz', 'percent' => 100],
+    ]) : collect();
+
+    // Merge in any modules added via the "+ Add Modules" form (session)
+    $seedModuleCount = $modules->count();
+    foreach (session('faculty_modules', [])[$course->id] ?? [] as $m) {
+        $modules->push((object) [
+            'title'    => $m['title'],
+            'subtitle' => $m['subtitle'],
+            'lessons'  => collect(),
+            'quiz'     => null,
+        ]);
+    }
+
+    // Give every module a STABLE position ('idx') and key ('seed-N'/'sess-N').
+    // Lessons and quizzes in the session are stored under these positions, so
+    // they must never shift — even when a module gets deleted (see below).
+    foreach ($modules as $i => $m) {
+        $m->idx = $i;
+        $m->key = $i < $seedModuleCount ? 'seed-' . $i : 'sess-' . ($i - $seedModuleCount);
+    }
+
+    // Tag every seed lesson with a stable key ('seed-N') and hide the ones
+    // the user has deleted (tracked in session 'faculty_deleted_lessons').
+    $deleted = session('faculty_deleted_lessons', [])[$course->id] ?? [];
+    foreach ($modules as $moduleIndex => $module) {
+        $module->lessons = $module->lessons
+            ->values()
+            ->map(function ($l, $i) {
+                $l->key = 'seed-' . $i;
+                return $l;
+            })
+            ->reject(fn ($l) => in_array($l->key, $deleted[$moduleIndex] ?? []))
+            ->values();
+    }
+
+    // Merge in any lessons added via the inline "Add Lesson" form (session),
+    // grouped by course id and module position. Each gets a 'sess-N' key.
+    foreach (session('faculty_lessons', [])[$course->id] ?? [] as $moduleIndex => $lessons) {
+        if (! isset($modules[$moduleIndex])) continue;
+        foreach ($lessons as $j => $l) {
+            $modules[$moduleIndex]->lessons->push((object) [
+                'key'           => 'sess-' . $j,
+                'title'         => $l['title'],
+                'meta'          => $l['meta'],
+                'file_url'      => $l['file_url'] ?? null,
+                'thumbnail_url' => isset($l['thumbnail']) && $l['thumbnail'] ? asset($l['thumbnail']) : null,
+            ]);
+        }
+    }
+
+    // Merge in any quizzes added via the inline "Add Quiz" form (session),
+    // grouped by course id and module position.
+    foreach (session('faculty_quizzes', [])[$course->id] ?? [] as $moduleIndex => $q) {
+        if (! isset($modules[$moduleIndex])) continue;
+        // A session-saved quiz overrides the seed quiz (edits win)
+        $modules[$moduleIndex]->quiz = (object) [
+            'title'           => $q['title'],
+            'questions_count' => $q['questions_count'],
+            'passing_score'   => $q['passing_score'],
+        ];
+    }
+
+    // Hide modules the user has deleted (tracked in session
+    // 'faculty_deleted_modules'). This happens AFTER lessons/quizzes are
+    // merged by position, so the remaining modules keep their stable idx.
+    $deletedModules = session('faculty_deleted_modules', [])[$course->id] ?? [];
+    $modules = $modules->reject(fn ($m) => in_array($m->key, $deletedModules))->values();
+
+    // ?add_lesson={moduleIndex} → show the inline Add Lesson form on that module
+    $addLessonIndex = request()->has('add_lesson') ? (int) request('add_lesson') : null;
+
+    return view('Faculty_My_Courses', [
+        'mode'           => 'manage',
+        'user'           => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'course'         => $course,
+        'modules'        => $modules,
+        'students'       => $students,
+        'quizAverages'   => $quizAverages,
+        'addLessonIndex' => $addLessonIndex,
+    ]);
+})->name('faculty.courses.manage');
+
+// Faculty › Create Courses — accessible at /Faculty-createcourse
+// ⚠ STANDALONE within the faculty side — reached from the "Create
+//   Courses" sidebar links / buttons on the Faculty Dashboard and
+//   Faculty My Courses pages. Saving POSTs to faculty.create.store below.
+// View: resources/views/Faculty_Create_Courses.blade.php
+Route::get('/Faculty-createcourse', function () {
+    return view('Faculty_Create_Courses', [
+        'user' => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'categories' => [
+            'Web Development',
+            'Artificial Intelligence',
+            'Databases',
+            'Networking',
+            'Computer Fundamentals',
+            'Project Management',
+        ],
+        'programs' => [
+            'BS Information Technology',
+            'BS Computer Science',
+            'BS Information Systems',
+        ],
+        'terms' => [
+            '1st Semester 2026 - 2027',
+            '2nd Semester 2026 - 2027',
+            'Summer 2027',
+        ],
+        'levels' => ['Beginner', 'Intermediate', 'Advanced'],
+    ]);
+})->name('faculty.create');
+
+// ✅ Handle the Create Courses form — persists to session until the DB
+//    is wired up, then redirects to the Managing Course screen for the
+//    newly created course (shown with its empty state: 0 Students,
+//    0 Modules, "No Students enrolled yet", "No Modules yet").
+Route::post('/Faculty-createcourse', function (\Illuminate\Http\Request $request) {
+    $created = session('faculty_courses', []);
+
+    // New ids start at 100 so they never clash with the dummy seed (1-5)
+    $newId = empty($created) ? 100 : (max(array_keys($created)) + 1);
+
+    // "Submit for approval" → Pending · "Draft" → Draft
+    $status = $request->input('status') === 'draft' ? 'Draft' : 'Pending';
+
+    $created[$newId] = [
+        'id'             => $newId,
+        'title'          => trim($request->input('title', '')) ?: 'Untitled Course',
+        'description'    => trim($request->input('description', '')),
+        'status'         => $status,
+        'level'          => $request->input('level') ?: 'Beginner',
+        'category'       => $request->input('category'),
+        'program'        => $request->input('program'),
+        'term'           => $request->input('term'),
+        'duration'       => $request->input('duration'),
+        'passing_score'  => $request->input('passing_score'),
+        'students_count' => 0,
+        'modules_count'  => 0,
+        'lessons_count'  => 0,
+        'thumbnail_url'  => null,
+    ];
+
+    session(['faculty_courses' => $created]);
+
+    return redirect()->route('faculty.courses.manage', $newId);
+
+    // ── TODO (when DB is ready) ────────────────────────────────────────
+    // Replace the session logic above with a Course::create([...]) call
+    // and redirect to the manage route with the new model's id.
+})->name('faculty.create.store');
+
+// ✅ Handle the "+ Add Modules" form on the Managing Course screen —
+//    persists the module to the session (key 'faculty_modules', grouped
+//    by course id) until the DB is wired up, then reloads the same
+//    Managing Course screen showing the new module card
+//    (with "+ Add Lesson", ✕ and "No quiz yet. / Add Quiz").
+Route::post('/Faculty-mycourses/manage/{id}/modules', function (\Illuminate\Http\Request $request, $id) {
+    $allModules = session('faculty_modules', []);
+
+    $allModules[(int) $id][] = [
+        'title'    => trim($request->input('module_title', '')) ?: 'Untitled Module',
+        'subtitle' => trim($request->input('module_description', '')),
+    ];
+
+    session(['faculty_modules' => $allModules]);
+
+    return redirect()->route('faculty.courses.manage', $id);
+
+    // ── TODO (when DB is ready) ────────────────────────────────────────
+    // Replace the session logic above with a Module::create([...]) call
+    // scoped to the course, then redirect back to the manage route.
+})->name('faculty.module.store');
+
+// ✅ Handle the inline "Add Lesson" form on the Managing Course screen —
+//    persists the lesson to the session (key 'faculty_lessons', grouped
+//    by course id + module position) until the DB is wired up, then
+//    reloads the same Managing Course screen with the lesson listed
+//    inside its module and the form closed.
+Route::post('/Faculty-mycourses/manage/{id}/modules/{moduleIndex}/lessons', function (\Illuminate\Http\Request $request, $id, $moduleIndex) {
+    $allLessons = session('faculty_lessons', []);
+
+    $duration = (int) $request->input('duration', 0);
+
+    // ✅ Handle the uploaded file. There's no type dropdown anymore — the
+    //    lesson type is detected from the file's extension. Files are saved
+    //    to public/uploads/lessons (no storage:link needed) and only the
+    //    path is kept in the session. Unsupported extensions are ignored.
+    //    Lessons without a file become Text lessons (using the textarea).
+    $type     = 'Text';
+    $fileUrl  = null;
+    $fileName = null;
+    if ($request->hasFile('lesson_file') && $request->file('lesson_file')->isValid()) {
+        $file    = $request->file('lesson_file');
+        $ext     = strtolower($file->getClientOriginalExtension());
+        $typeMap = [
+            'pdf'  => 'PDF',
+            'mp4'  => 'Video', 'webm' => 'Video', 'ogg' => 'Video',
+            'mov'  => 'Video', 'avi'  => 'Video', 'mkv' => 'Video',
+            'jpg'  => 'Image', 'jpeg' => 'Image', 'png' => 'Image',
+            'gif'  => 'Image', 'webp' => 'Image', 'bmp' => 'Image', 'svg' => 'Image',
+            'txt'  => 'Text',
+        ];
+        if (isset($typeMap[$ext])) {
+            $dir = public_path('uploads/lessons');
+            if (! is_dir($dir)) {
+                mkdir($dir, 0775, true);
+            }
+            $name = uniqid('lesson_') . '.' . $ext;
+            $file->move($dir, $name);
+            $type     = $typeMap[$ext];
+            $fileUrl  = 'uploads/lessons/' . $name;
+            $fileName = $file->getClientOriginalName();
+        }
+    }
+
+    $allLessons[(int) $id][(int) $moduleIndex][] = [
+        'title'     => trim($request->input('lesson_title', '')) ?: 'Untitled Lesson',
+        'type'      => $type,
+        'meta'      => $type . ($duration > 0 ? ' · ' . $duration . 'm' : ''),
+        'content'   => trim($request->input('lesson_content', '')),   // Text lessons
+        'file_url'  => $fileUrl,
+        'file_name' => $fileName,
+        // Image lessons use their own upload as the row thumbnail
+        'thumbnail' => ($type === 'Image' && $fileUrl) ? $fileUrl : null,
+    ];
+
+    session(['faculty_lessons' => $allLessons]);
+
+    return redirect()->route('faculty.courses.manage', $id);
+
+    // ── TODO (when DB is ready) ────────────────────────────────────────
+    // Replace the session logic above with a Lesson::create([...]) call
+    // (keeping the same file-move logic or switching to the Storage
+    // facade) scoped to the module, then redirect back.
+})->name('faculty.lesson.store');
+
+// ✅ Handle the inline "Add Quiz" form on the Managing Course screen —
+//    persists the quiz to the session (key 'faculty_quizzes', one quiz
+//    per module, grouped by course id + module position) until the DB
+//    is wired up, then reloads the same Managing Course screen with the
+//    quiz shown in the module footer ("0 Questions · Pass X%" + Edit Quiz).
+Route::post('/Faculty-mycourses/manage/{id}/modules/{moduleIndex}/quiz', function (\Illuminate\Http\Request $request, $id, $moduleIndex) {
+    $allQuizzes = session('faculty_quizzes', []);
+
+    $passing = (int) $request->input('passing_score', 0);
+    if ($passing < 1 || $passing > 100) $passing = 75;   // sensible default
+
+    // Parse every question card — blank questions (no text) are skipped.
+    // Each type stores what its display collects:
+    //   Multiple Choice → typed choices + 'correct' radio index
+    //   True or False   → fixed ['True','False'] + 'tf_correct' radio index
+    //   Identification  → a single typed 'answer'
+    $questions = [];
+    foreach ($request->input('questions', []) as $qi) {
+        $text = trim($qi['text'] ?? '');
+        if ($text === '') continue;
+
+        $qType = $qi['type'] ?? 'Multiple Choice';
+        if ($qType === 'Identification') {
+            $choices = [];
+            $correct = null;
+            $answer  = trim($qi['answer'] ?? '');
+        } elseif ($qType === 'True or False') {
+            $choices = ['True', 'False'];
+            $correct = $qi['tf_correct'] ?? null;
+            $answer  = null;
+        } else {
+            $choices = array_values(array_filter(array_map('trim', $qi['choices'] ?? [])));
+            $correct = $qi['correct'] ?? null;
+            $answer  = null;
+        }
+
+        $questions[] = [
+            'text'    => $text,
+            'type'    => $qType,
+            'points'  => (int) ($qi['points'] ?? 0),
+            'choices' => $choices,
+            'correct' => $correct,
+            'answer'  => $answer,
+        ];
+    }
+
+    $allQuizzes[(int) $id][(int) $moduleIndex] = [
+        'title'           => trim($request->input('quiz_title', '')) ?: 'Untitled Quiz',
+        'passing_score'   => $passing,
+        'questions_count' => count($questions),
+        // Extra builder fields kept for later (Edit Quiz / DB migration):
+        'items'           => (int) $request->input('items', 1),
+        'attempts'        => $request->input('attempts'),
+        'time_limit'      => (int) $request->input('time_limit', 0),
+        'instructions'    => trim($request->input('instructions', '')),
+        'questions'       => $questions,
+    ];
+
+    session(['faculty_quizzes' => $allQuizzes]);
+
+    return redirect()->route('faculty.courses.manage', $id);
+
+    // ── TODO (when DB is ready) ────────────────────────────────────────
+    // Replace the session logic above with Quiz::create([...]) plus
+    // Question/Choice records scoped to the module, then redirect back.
+})->name('faculty.quiz.store');
+
+// ✅ Handle the lesson ✕ buttons on the Managing Course screen —
+//    deletes the lesson, then reloads the same screen.
+//    Lesson keys: 'sess-N' = lesson added via the Add Lesson form
+//    (removed from session 'faculty_lessons'); 'seed-N' = dummy seed
+//    lesson (its key is remembered in session 'faculty_deleted_lessons'
+//    so it stays hidden). Replace all of this with a DB delete later.
+Route::post('/Faculty-mycourses/manage/{id}/modules/{moduleIndex}/lessons/{key}/delete', function ($id, $moduleIndex, $key) {
+    $id = (int) $id;
+    $moduleIndex = (int) $moduleIndex;
+
+    if (str_starts_with($key, 'sess-')) {
+        // Remove a session-added lesson and reindex the rest
+        $allLessons = session('faculty_lessons', []);
+        $j = (int) substr($key, 5);
+        if (isset($allLessons[$id][$moduleIndex][$j])) {
+            unset($allLessons[$id][$moduleIndex][$j]);
+            $allLessons[$id][$moduleIndex] = array_values($allLessons[$id][$moduleIndex]);
+            session(['faculty_lessons' => $allLessons]);
+        }
+    } elseif (str_starts_with($key, 'seed-')) {
+        // Hide a seed lesson by remembering its key
+        $deleted = session('faculty_deleted_lessons', []);
+        if (! in_array($key, $deleted[$id][$moduleIndex] ?? [])) {
+            $deleted[$id][$moduleIndex][] = $key;
+            session(['faculty_deleted_lessons' => $deleted]);
+        }
+    }
+
+    return redirect()->route('faculty.courses.manage', $id);
+
+    // ── TODO (when DB is ready) ────────────────────────────────────────
+    // Replace the session logic above with Lesson::destroy($lessonId).
+})->name('faculty.lesson.delete');
+
+// ✅ Handle the module ✕ buttons on the Managing Course screen —
+//    deletes the whole module (its lessons and quiz disappear with it),
+//    then reloads the same screen. Works by remembering the module's key
+//    ('seed-N' or 'sess-N') in session 'faculty_deleted_modules'; the
+//    module's session lessons/quiz stay stored but are never shown again.
+//    Replace all of this with a DB delete later.
+Route::post('/Faculty-mycourses/manage/{id}/modules/{key}/delete', function ($id, $key) {
+    $id = (int) $id;
+
+    $deleted = session('faculty_deleted_modules', []);
+    if (! in_array($key, $deleted[$id] ?? [])) {
+        $deleted[$id][] = $key;
+        session(['faculty_deleted_modules' => $deleted]);
+    }
+
+    return redirect()->route('faculty.courses.manage', $id);
+
+    // ── TODO (when DB is ready) ────────────────────────────────────────
+    // Replace the session logic above with Module::destroy($moduleId),
+    // cascading to its lessons and quiz.
+})->name('faculty.module.delete');
+
+// Faculty › Add Quiz builder — /Faculty-mycourses/manage/{id}/modules/{moduleIndex}/quiz/create
+// Shown when a module's "Add Quiz" button is clicked. Renders the SAME
+// Faculty_My_Courses blade in 'quiz' mode (no separate blade file):
+// quiz settings + Question 1 with choices. "Back to Modules" and
+// Save Quiz both return to the Managing Course screen.
+Route::get('/Faculty-mycourses/manage/{id}/modules/{moduleIndex}/quiz/create', function ($id, $moduleIndex) {
+    $allCourses = facultyAllCourses();
+    $course     = $allCourses[$id] ?? $allCourses[1];
+    $moduleIndex = (int) $moduleIndex;
+
+    // Resolve the module's title for the "Add Quiz : <module>" heading.
+    // Seed courses have 2 fixed seed modules, then session modules follow.
+    $titles = array_key_exists($course->id, facultyDummyCourses())
+        ? ['Laravel Fundamentals', 'Database & Eloquent ORM']
+        : [];
+    foreach (session('faculty_modules', [])[$course->id] ?? [] as $m) {
+        $titles[] = $m['title'];
+    }
+
+    // Load the existing quiz (if any) so the builder opens PREFILLED for
+    // editing. Session-saved quizzes win; seed quizzes are the fallback.
+    $quiz = null;
+    $sessionQuiz = session('faculty_quizzes', [])[$course->id][$moduleIndex] ?? null;
+    if ($sessionQuiz) {
+        // Quizzes saved before multi-question support had a single 'question'
+        $questions = $sessionQuiz['questions']
+            ?? (isset($sessionQuiz['question']) && $sessionQuiz['question'] ? [$sessionQuiz['question']] : []);
+
+        $quiz = (object) [
+            'title'         => $sessionQuiz['title'],
+            'items'         => $sessionQuiz['items'] ?? null,
+            'passing_score' => $sessionQuiz['passing_score'],
+            'attempts'      => $sessionQuiz['attempts'] ?? null,
+            'time_limit'    => $sessionQuiz['time_limit'] ?? null,
+            'instructions'  => $sessionQuiz['instructions'] ?? '',
+            'questions'     => $questions,
+        ];
+    } elseif (array_key_exists($course->id, facultyDummyCourses())) {
+        // Seed quizzes on the two seed modules
+        $seedQuizzes = [
+            0 => ['title' => 'Laravel Fundamentals Quiz', 'passing_score' => 75],
+            1 => ['title' => 'Database & Eloquent ORM',   'passing_score' => 75],
+        ];
+        if (isset($seedQuizzes[$moduleIndex])) {
+            $quiz = (object) array_merge($seedQuizzes[$moduleIndex], [
+                'items' => null, 'attempts' => null, 'time_limit' => null,
+                'instructions' => '', 'questions' => [],
+            ]);
+        }
+    }
+
+    return view('Faculty_My_Courses', [
+        'mode'        => 'quiz',
+        'user'        => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'course'      => $course,
+        'moduleIdx'   => $moduleIndex,
+        'moduleTitle' => $titles[$moduleIndex] ?? 'Module',
+        'quiz'        => $quiz,
+    ]);
+})->name('faculty.quiz.create');
