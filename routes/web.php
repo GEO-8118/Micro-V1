@@ -537,9 +537,39 @@ Route::get('/analytics', function () {
 //   Every button/link inside the view is a placeholder (href="#" or a
 //   plain <button>) — nothing here links into student or admin pages.
 // View: resources/views/Faculty_dashboard.blade.php
+// ── Faculty profile user (shared by ALL faculty pages) ────────────────────
+// One source of truth so the topbar avatar / name stay in sync everywhere
+// after edits made in the Edit Profile drawer (session 'faculty_profile').
+// Replace with the authenticated user once auth + DB are wired up.
+if (! function_exists('facultyProfileUser')) {
+    function facultyProfileUser(): object
+    {
+        $defaults = [
+            'name'           => 'Prof. Juan Dela Cruz',
+            'role'           => 'Faculty',
+            'phone'          => '09345678912',
+            'email'          => 'juandelacruz@gmail.com',
+            'joined'         => 'Jan 15, 2021',
+            'location'       => 'San Juan, Pangasinan',
+            'birth_date_raw' => '2003-10-12',
+            'gender'         => 'Male',
+            'education'      => 'BS Information Technology',
+            'bio'            => 'Photo Editing Skilled. Frontend Web Designer for Wordpress. Can Edit Multiple Frames in Just 1 Hour.',
+            'about'          => 'Passionate about Web Developing and App Developing. Problem Solving. Love to Learn new Skills and More.',
+            'language'       => 'English',
+            'timezone'       => '(GMT + 8:00) Asia/Manila',
+            'avatar_url'     => null,
+        ];
+        $profile = array_merge($defaults, session('faculty_profile', []));
+        $profile['birth_date'] = \Carbon\Carbon::parse($profile['birth_date_raw'])->format('F j, Y');
+
+        return (object) $profile;
+    }
+}
+
 Route::get('/Faculty-dashboard', function () {
     return view('Faculty_dashboard', [
-        'user' => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'user' => facultyProfileUser(),
         'stats' => [
             'total_courses'  => 5,
             'published'      => 3,
@@ -564,6 +594,157 @@ Route::get('/Faculty-dashboard', function () {
         ]),
     ]);
 })->name('faculty.dashboard');
+
+// ── Faculty › My Profile — accessible at /Faculty-profile ─────────────────
+// ⚠ STANDALONE within the faculty side — reached ONLY from the sidebar
+//   "Profile" link / topbar avatar on the Faculty Dashboard, My Courses and
+//   Create Courses pages. All buttons on the page itself (Change email /
+//   password, Filter, selects) are intentionally non-functioning for now.
+// View: resources/views/Faculty_Profile.blade.php
+Route::get('/Faculty-profile', function () {
+    return view('Faculty_Profile', [
+        'user' => facultyProfileUser(),
+        'languages' => ['English', 'Filipino'],
+        'timezones' => [
+            '(GMT + 8:00) Asia/Manila',
+            '(GMT + 5:30) Asia/Kolkata',
+            '(GMT + 0:00) UTC',
+        ],
+        // Last 6 months — teaching performance (%)
+        'performance' => [
+            ['label' => 'Jan', 'percent' => 58],
+            ['label' => 'Feb', 'percent' => 66],
+            ['label' => 'Mar', 'percent' => 78],
+            ['label' => 'Apr', 'percent' => 70],
+            ['label' => 'May', 'percent' => 74],
+            ['label' => 'Jun', 'percent' => 86],
+        ],
+        // This week — hours of activity per day
+        'activity' => [
+            ['label' => 'Mon', 'hours' => 5],
+            ['label' => 'Tue', 'hours' => 6],
+            ['label' => 'Wed', 'hours' => 4],
+            ['label' => 'Thu', 'hours' => 7],
+            ['label' => 'Fri', 'hours' => 8],
+            ['label' => 'Sat', 'hours' => 3],
+            ['label' => 'Sun', 'hours' => 2],
+        ],
+        // Course statistics table — the SAME existing faculty courses shown
+        // on the Dashboard / My Courses pages (seed + session-created), with
+        // no students enrolled yet: 0 students, no ratings, 0% completion.
+        'profileCourses' => collect(facultyAllCourses())->values()->map(function ($course) {
+            return (object) [
+                'title'         => $course->title,
+                'category'      => $course->level ?? 'Course',
+                'students'      => 0,
+                'rating'        => null,
+                'completion'    => 0,
+                'earnings'      => '$0',
+                'status'        => $course->status ?? 'Draft',
+                'thumbnail_url' => $course->thumbnail_url ?? null,
+            ];
+        }),
+    ]);
+})->name('faculty.profile');
+
+// ✅ Handle the Edit Profile drawer — validates and persists the whole
+//    profile (personal info, about me, account settings, avatar, password)
+//    to the session (key 'faculty_profile') until the DB is wired up,
+//    then redirects back to the profile with a success toast.
+Route::patch('/Faculty-profile', function (\Illuminate\Http\Request $request) {
+    $data = $request->validate([
+        'name'           => 'required|string|max:100',
+        'phone'          => 'nullable|string|max:30',
+        'location'       => 'nullable|string|max:120',
+        'role'           => 'nullable|string|max:60',
+        'about'          => 'nullable|string|max:600',
+        'date_of_birth'  => 'nullable|date',
+        'gender'         => 'nullable|string|max:30',
+        'education'      => 'nullable|string|max:120',
+        'bio'            => 'nullable|string|max:600',
+        'email'          => 'required|email|max:120',
+        'current_password'      => 'nullable|string',
+        'password'              => 'nullable|string|min:8|confirmed',
+        'language'       => 'nullable|string|max:40',
+        'timezone'       => 'nullable|string|max:60',
+        'avatar_base64'  => 'nullable|string',
+    ]);
+
+    $profile = session('faculty_profile', []);
+
+    // Password change (optional — leave blank to keep current password).
+    // A password saved earlier in this session must be confirmed first.
+    if (! empty($data['password'])) {
+        $storedHash = $profile['password_hash'] ?? null;
+        if ($storedHash && ! \Illuminate\Support\Facades\Hash::check($data['current_password'] ?? '', $storedHash)) {
+            return back()
+                ->withErrors(['current_password' => 'Current password is incorrect.'])
+                ->withInput();
+        }
+        $profile['password_hash'] = \Illuminate\Support\Facades\Hash::make($data['password']);
+    }
+
+    // Text fields — only overwrite with non-null values
+    foreach (['name', 'phone', 'location', 'role', 'about', 'gender', 'education', 'bio', 'email', 'language', 'timezone'] as $field) {
+        if (isset($data[$field])) {
+            $profile[$field] = $data[$field];
+        }
+    }
+
+    if (! empty($data['date_of_birth'])) {
+        $profile['birth_date_raw'] = $data['date_of_birth'];
+    }
+
+    // Avatar arrives as a client-resized base64 data URL (~<50 KB) so it
+    // fits comfortably in the session; works directly in CSS/img.
+    if (! empty($data['avatar_base64'])) {
+        $profile['avatar_url'] = $data['avatar_base64'];
+    }
+
+    session(['faculty_profile' => $profile]);
+
+    return redirect()->route('faculty.profile')->with('success', 'Profile updated successfully!');
+})->name('faculty.profile.update');
+
+// ── Faculty › Analytics — accessible at /Faculty-analytics ────────────────
+// ⚠ STANDALONE within the faculty side — reached ONLY from the sidebar
+//   "Analytics" link on the Faculty Dashboard, My Courses, Create Courses
+//   and Profile pages. Timeline filters are non-functioning for now.
+//   Replace the dummy numbers below with real queries later.
+// View: resources/views/Faculty_Analytics.blade.php
+Route::get('/Faculty-analytics', function () {
+    return view('Faculty_Analytics', [
+        'user'            => facultyProfileUser(),
+        'onlineNow'       => 0,
+        'activeThisMonth' => 26,
+        'stats' => [
+            'total_learners' => 28,
+            'certificates'   => 18,
+            'lessons_done'   => 582,
+        ],
+        // All-time academy statistics (line/area chart)
+        'academyStats' => [
+            ['label' => "Aug 1,\n2025", 'value' => 9],
+            ['label' => "Sep 1,\n2025", 'value' => 9],
+            ['label' => "Oct 1,\n2025", 'value' => 9],
+            ['label' => "Nov 1,\n2025", 'value' => 9],
+            ['label' => "Dec 1,\n2025", 'value' => 10],
+            ['label' => "Jan 1,\n2026", 'value' => 10],
+            ['label' => "Feb 1,\n2026", 'value' => 11],
+            ['label' => "Mar 1,\n2026", 'value' => 12],
+            ['label' => "Apr 1,\n2026", 'value' => 15],
+            ['label' => "May 1,\n2026", 'value' => 19],
+            ['label' => "Jun 1,\n2026", 'value' => 23],
+            ['label' => "Jul 1,\n2026", 'value' => 28],
+        ],
+        // Learner success donut breakdown
+        'learnerSuccess' => [
+            ['label' => 'Completed one or more courses',         'count' => 21],
+            ['label' => 'Got through at least half of a course', 'count' => 5],
+            ['label' => 'Started a course',                      'count' => 2],
+        ],
+    ]);
+})->name('faculty.analytics');
 
 // ── Faculty dummy course data (shared by the routes below) ────────────────
 // One source of truth so the Manage screen always shows the SAME course
@@ -652,7 +833,7 @@ if (! function_exists('facultyAllCourses')) {
 Route::get('/Faculty-mycourses', function () {
     return view('Faculty_My_Courses', [
         'mode'    => 'list',
-        'user'    => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'user'    => facultyProfileUser(),
         'courses' => collect(facultyAllCourses())->values(),
     ]);
 })->name('faculty.courses');
@@ -783,7 +964,7 @@ Route::get('/Faculty-mycourses/manage/{id}', function ($id) {
 
     return view('Faculty_My_Courses', [
         'mode'           => 'manage',
-        'user'           => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'user'           => facultyProfileUser(),
         'course'         => $course,
         'modules'        => $modules,
         'students'       => $students,
@@ -799,7 +980,7 @@ Route::get('/Faculty-mycourses/manage/{id}', function ($id) {
 // View: resources/views/Faculty_Create_Courses.blade.php
 Route::get('/Faculty-createcourse', function () {
     return view('Faculty_Create_Courses', [
-        'user' => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'user' => facultyProfileUser(),
         'categories' => [
             'Web Development',
             'Artificial Intelligence',
@@ -1122,7 +1303,7 @@ Route::get('/Faculty-mycourses/manage/{id}/modules/{moduleIndex}/quiz/create', f
 
     return view('Faculty_My_Courses', [
         'mode'        => 'quiz',
-        'user'        => (object) ['name' => 'Prof. Juan Dela Cruz'],
+        'user'        => facultyProfileUser(),
         'course'      => $course,
         'moduleIdx'   => $moduleIndex,
         'moduleTitle' => $titles[$moduleIndex] ?? 'Module',

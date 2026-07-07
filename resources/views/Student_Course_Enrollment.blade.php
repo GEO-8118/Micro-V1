@@ -24,9 +24,10 @@
     .brand .logo{width:46px;height:46px;border-radius:50%;background:#fff;flex-shrink:0;}
     .brand .logo img{width:100%;height:100%;object-fit:contain;border-radius:50%;padding:3px;}
     .brand h1{font-size:24px;letter-spacing:1px;margin:0;font-weight:800;}
-    .nav-pills{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto;}
-    .nav-pills a{background:#fff;color:var(--navy);font-weight:700;padding:10px 26px;border-radius:999px;font-size:15px;}
-    .nav-pills a.is-active{outline:2px solid var(--cyan);}
+    .nav-pills{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center;}
+    .nav-pills a{background:transparent;color:#fff;font-weight:700;padding:10px 18px;border-radius:10px;font-size:15px;transition:color .15s ease, background-color .15s ease;}
+    .nav-pills a:hover{color:var(--gold);}
+    .nav-pills a.is-active{color:var(--gold);background:rgba(255,255,255,0.08);}
     .search-box{display:flex;align-items:center;gap:10px;background:#fff;border-radius:999px;padding:10px 18px;min-width:220px;color:var(--muted);}
     .search-box input{border:none;outline:none;font-size:15px;width:100%;color:var(--ink);background:transparent;}
     .icon-cluster{display:flex;align-items:center;gap:14px;}
@@ -34,10 +35,10 @@
     .icon-circle svg{width:22px;height:22px;color:var(--navy);}
 
     /* ── Layout ─────────────────────────────── */
-    .layout{display:grid;grid-template-columns:260px 1fr;height:calc(100vh - 74px);}
+    .layout{display:grid;grid-template-columns:294px 1fr;height:calc(100vh - 74px);}
 
     /* ── Left: Course Nav ───────────────────── */
-    .course-nav{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;}
+    .course-nav{background:#fff;display:flex;flex-direction:column;overflow:hidden;margin:24px 10px 24px 24px;border-radius:22px;border:1px solid var(--line);}
     .course-nav-header{background:var(--navy);color:#fff;padding:20px 18px 18px;flex-shrink:0;}
     .nav-category{font-size:12px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
     .nav-title{font-size:15px;font-weight:800;line-height:1.3;margin-bottom:16px;}
@@ -189,7 +190,7 @@
 
     @media(max-width:980px){
         .layout{grid-template-columns:1fr;height:auto;}
-        .course-nav{max-height:340px;}
+        .course-nav{max-height:340px;margin:14px;border-radius:16px;}
         .lesson-content{padding:20px 18px 40px;}
     }
 </style>
