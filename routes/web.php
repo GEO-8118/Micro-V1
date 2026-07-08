@@ -36,6 +36,20 @@ Route::get('/', fn() => view('Homepage'))->name('Homepage');
 Route::get('/login', fn() => view('login'))->name('login');
 Route::get('/register', fn() => view('register'))->name('register');
 
+// Students directory — linked from the navbar "Students" button.
+// The view ships with its own dummy students; when the DB is ready,
+// pass a real collection: view('Student_List', ['students' => $students])
+// where each student has ->name and ->student_id.
+Route::get('/students', fn() => view('Student_List'))->name('students.index');
+
+// Navbar "Announcement" and "Microcredentials" links point to /announcements
+// and /microcredentials. On the Homepage a script intercepts these clicks and
+// smooth-scrolls to the matching sections — but from ANY OTHER page (e.g.
+// /students) the browser really navigates here, which used to 404. These
+// redirects send visitors back to the right homepage sections instead.
+Route::get('/announcements',    fn() => redirect('/#announcements'));
+Route::get('/microcredentials', fn() => redirect('/#featured'));
+
 // ══════════════════════════════════════════════════════════════════════════
 // ADMIN ROUTES
 // ══════════════════════════════════════════════════════════════════════════

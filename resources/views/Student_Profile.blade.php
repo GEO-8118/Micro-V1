@@ -134,6 +134,13 @@
     .panel-card-head a{color:var(--navy);font-size:13px;font-weight:700;}
     .panel-card-body{min-height:70px;color:var(--muted);font-size:13px;}
 
+    /* Student ID card */
+    .student-id-body{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:0;padding:6px 0;}
+    .student-id-number{font-size:22px;font-weight:800;letter-spacing:2px;color:var(--navy);font-variant-numeric:tabular-nums;}
+    .student-id-label{font-size:12px;color:var(--muted);margin-top:2px;}
+    .student-id-copy{background:transparent;border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;color:var(--navy);transition:background-color .15s ease,color .15s ease;}
+    .student-id-copy:hover{background:var(--navy);color:#fff;}
+
     @media (max-width:980px){
         .layout{grid-template-columns:1fr;}
         .sidebar{flex-direction:column;position:static;margin:14px;border-radius:16px;}
@@ -605,6 +612,34 @@
                     </div>
                 </div>
 
+                {{-- ===== STUDENT ID ===== --}}
+                @php
+                    // Format: YY-LN-####
+                    //   YY   = last two digits of the year the account was created
+                    //   LN   = literal "LN"
+                    //   #### = stable 4-digit number derived from the user ID
+                    //          (deterministic so it never changes between page loads;
+                    //          ideally generate once in the controller and store on the users table)
+                    $idYear   = ($user->joined_at ?? $user->created_at ?? now())->format('y');
+                    $idDigits  = str_pad(($user->id ?? 0) * 7919 % 10000, 4, '0', STR_PAD_LEFT);
+                    $studentId = "{$idYear}-LN-{$idDigits}";
+                @endphp
+                <div class="panel-card">
+                    <div class="panel-card-head">
+                        <h4>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 17a3 3 0 0 1 5 0"/><path d="M14 9h5M14 13h5"/></svg>
+                            Student ID
+                        </h4>
+                    </div>
+                    <div class="panel-card-body student-id-body">
+                        <div>
+                            <div class="student-id-number">{{ $studentId }}</div>
+                            <div class="student-id-label">Your unique student identification number</div>
+                        </div>
+                        <button type="button" class="student-id-copy" onclick="copyStudentId(this, '{{ $studentId }}')">Copy</button>
+                    </div>
+                </div>
+
             </div>
 
         </div>
@@ -845,6 +880,26 @@
 </div>{{-- /.modal-overlay --}}
 
 <script>
+/* ====== Student ID copy ====== */
+function copyStudentId(btn, id) {
+    const done = () => {
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(id).then(done);
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = id;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        done();
+    }
+}
+
 /* ====== Edit Profile Modal ====== */
 function openEditModal(tab) {
     document.getElementById('editModal').classList.add('open');

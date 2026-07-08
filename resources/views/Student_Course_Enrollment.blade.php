@@ -187,6 +187,10 @@
         background:transparent;color:var(--navy);font-weight:800;font-size:15px;
         border-radius:14px;cursor:pointer;margin-top:0;}
     .btn-retake:hover{background:var(--navy);color:#fff;}
+    /* Retake button while in 24-hour cooldown */
+    .btn-retake.cooldown{border-color:#d1d5db;background:#f3f4f6;color:#9ca3af;cursor:not-allowed;}
+    .btn-retake.cooldown:hover{background:#f3f4f6;color:#9ca3af;}
+    .btn-retake .cooldown-timer{display:block;font-size:12px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums;}
 
     @media(max-width:980px){
         .layout{grid-template-columns:1fr;height:auto;}
@@ -401,7 +405,7 @@
                 Continue to Next Module &#x2192;
             </button>
             <button class="btn-retake" id="btn-retake" onclick="retakeQuiz()" type="button">
-                &#x21BA; Retake Quiz
+                Retake Quiz
             </button>
         </div>
 
@@ -771,6 +775,7 @@ function showQuizView(modIdx, viewOnly, retakeOnly) {
     });
 
     // Buttons
+    if (_cooldownTimerId) { clearInterval(_cooldownTimerId); _cooldownTimerId = null; }
     document.getElementById('btn-next-module').style.display = 'none';
     document.getElementById('btn-retake').style.display      = 'none';
 
@@ -786,6 +791,11 @@ function showQuizView(modIdx, viewOnly, retakeOnly) {
             : 'Score: ' + correct + '/' + total + ' — Keep practicing!';
         scoreEl.className  = 'quiz-score-result ' + (pass ? 'pass' : 'fail');
         scoreEl.style.display = 'block';
+
+        // Failed attempt being reviewed → show retake button in its cooldown/unlocked state
+        if (!pass && _moduleScores[modIdx] !== undefined) {
+            showRetakeButton(modIdx);
+        }
     } else {
         document.getElementById('quiz-score-result').style.display = 'none';
         document.getElementById('btn-quiz-submit').style.display    = 'flex';
@@ -870,6 +880,7 @@ function submitQuiz() {
 
     if (pass) {
         // ✅ PASSED → unlock next module
+        clearRetakeCooldown(_curModIdx); // no cooldown needed anymore
         // Mark this quiz button as viewed (read-only)
         const doneBtn = document.getElementById('qbtn-' + _curModIdx);
         if (doneBtn) {
@@ -885,8 +896,9 @@ function submitQuiz() {
             nb.style.display = 'flex';
         }
     } else {
-        // ❌ FAILED → next module stays locked, offer retake
-        document.getElementById('btn-retake').style.display = 'block';
+        // ❌ FAILED → next module stays locked, offer retake after 24h cooldown
+        startRetakeCooldown(_curModIdx);      // clock starts at the moment of failing
+        showRetakeButton(_curModIdx);         // shows locked button with live countdown
     }
 }
 
@@ -903,8 +915,76 @@ function unlockModule(modIdx) {
     if (sub) sub.innerHTML = '<span style="color:var(--green);font-size:11px;font-weight:700;">✓ Unlocked</span>';
 }
 
+/* ── Retake quiz 24-hour cooldown ─────────────────── */
+const RETAKE_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const RETAKE_KEY_PREFIX  = 'quizRetakeUnlockAt_{{ $course->id ?? ($course->title ?? "course") }}_';
+var _cooldownTimerId = null;
+
+function retakeKey(modIdx) {
+    return RETAKE_KEY_PREFIX + modIdx;
+}
+
+/* Called when the student FAILS → start (or restart) the 24h clock */
+function startRetakeCooldown(modIdx) {
+    try {
+        localStorage.setItem(retakeKey(modIdx), String(Date.now() + RETAKE_COOLDOWN_MS));
+    } catch (e) { /* storage unavailable → button just stays enabled */ }
+}
+
+function clearRetakeCooldown(modIdx) {
+    try { localStorage.removeItem(retakeKey(modIdx)); } catch (e) {}
+}
+
+/* Milliseconds remaining until retake is allowed (0 = allowed now) */
+function retakeMsRemaining(modIdx) {
+    try {
+        const unlockAt = parseInt(localStorage.getItem(retakeKey(modIdx)) || '0', 10);
+        return Math.max(0, unlockAt - Date.now());
+    } catch (e) { return 0; }
+}
+
+function formatCooldown(ms) {
+    const totalSec = Math.ceil(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return (h > 0 ? h + 'h ' : '') + m + 'm ' + String(s).padStart(2, '0') + 's';
+}
+
+/* Show the retake button in the correct state (locked countdown or clickable),
+   and keep the countdown ticking until it unlocks. */
+function showRetakeButton(modIdx) {
+    const btn = document.getElementById('btn-retake');
+    if (_cooldownTimerId) { clearInterval(_cooldownTimerId); _cooldownTimerId = null; }
+
+    function render() {
+        const remaining = retakeMsRemaining(modIdx);
+        if (remaining > 0) {
+            btn.classList.add('cooldown');
+            btn.disabled  = true;
+            btn.innerHTML = 'Retake Quiz'
+                          + '<span class="cooldown-timer">Available in ' + formatCooldown(remaining) + '</span>';
+        } else {
+            btn.classList.remove('cooldown');
+            btn.disabled  = false;
+            btn.innerHTML = 'Retake Quiz';
+            if (_cooldownTimerId) { clearInterval(_cooldownTimerId); _cooldownTimerId = null; }
+        }
+    }
+
+    render();
+    if (retakeMsRemaining(modIdx) > 0) {
+        _cooldownTimerId = setInterval(render, 1000);
+    }
+    btn.style.display = 'block';
+}
+
 /* ── Retake quiz (wrong questions only) ───────────── */
 function retakeQuiz() {
+    // Hard guard: ignore clicks while the 24h cooldown is still running
+    if (retakeMsRemaining(_curModIdx) > 0) return;
+
+    if (_cooldownTimerId) { clearInterval(_cooldownTimerId); _cooldownTimerId = null; }
     document.getElementById('btn-retake').style.display        = 'none';
     document.getElementById('quiz-score-result').style.display = 'none';
     showQuizView(_curModIdx, false, true);   // retakeOnly=true → only wrong questions shown

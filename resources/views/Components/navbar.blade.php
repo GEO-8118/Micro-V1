@@ -17,6 +17,7 @@
             <li><a href="{{ request()->is('/') ? '#latest-courses' : url('/#latest-courses') }}" class="navbar__link {{ request()->is('explore') ? 'active' : '' }}">Explore</a></li>
             <li><a href="{{ url('/announcements') }}"     class="navbar__link {{ request()->is('announcements') ? 'active' : '' }}">Announcement</a></li>
             <li><a href="{{ url('/microcredentials') }}"  class="navbar__link {{ request()->is('microcredentials') ? 'active' : '' }}">Microcredentials</a></li>
+            <li><a href="{{ url('/students') }}"          class="navbar__link {{ request()->is('students') ? 'active' : '' }}">Students</a></li>
         </ul>
 
         {{-- Actions --}}

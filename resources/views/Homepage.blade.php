@@ -410,7 +410,7 @@
 </section>
 
 {{-- ── FEATURED COURSES ── --}}
-<section class="featured">
+<section class="featured" id="featured">
     <div class="container">
         <div class="featured__header">
             <h2 class="section-title">Featured Courses</h2>
