@@ -6,6 +6,10 @@
     <meta name="description" content="UpSkill – The Official Platform for PSU Microcredentials">
     <title>@yield('title', 'UpSkill – PSU Microcredentials')</title>
 
+    {{-- Browser tab icon (favicon) --}}
+    <link rel="icon" type="image/png" href="{{ asset('Images/PSU-Logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('Images/PSU-Logo.png') }}">
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
