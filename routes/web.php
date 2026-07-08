@@ -3,12 +3,17 @@
 use Illuminate\Support\Facades\Route;
 
 // ══════════════════════════════════════════════════════════════════════════
-// GLOBAL VIEW COMPOSER
-// Runs on every view render and merges saved profile data (avatar, name,
-// role) from the session into the $user object — so the topbar avatar and
-// username stay up-to-date on ALL pages automatically.
+// STUDENT VIEW COMPOSER
+// Runs on STUDENT view renders only ('Student_*') and merges saved student
+// profile data (avatar, name, role) from the session into the $user object —
+// so the topbar avatar and username stay up-to-date on all STUDENT pages.
+//
+// ⚠ Deliberately scoped to 'Student_*' (NOT '*'): the student and faculty
+//   sides are separate. Faculty pages use their own session key
+//   ('faculty_profile' via facultyProfileUser()), so student profile edits
+//   must never bleed into Faculty (or Admin) views.
 // ══════════════════════════════════════════════════════════════════════════
-app('view')->composer('*', function (\Illuminate\View\View $view) {
+app('view')->composer('Student_*', function (\Illuminate\View\View $view) {
     try {
         $saved = session('profile_data', []);
     } catch (\Throwable $e) {
