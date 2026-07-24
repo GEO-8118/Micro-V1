@@ -165,6 +165,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>
             @endunless
         </a>
+        <form action="{{ route('logout') }}" method="POST" style="display:inline-flex;align-items:center;">
+            @csrf
+            <button type="submit" style="background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;">Logout</button>
+        </form>
     </div>
 </header>
 
@@ -218,6 +222,7 @@
             <div>
                 <h2>Faculty Dashboard</h2>
                 <p>Manage your Courses and Track student Performance</p>
+                <p style="margin-top: 8px; color: var(--navy); font-weight: 700;">User Code: {{ $user->user_code ?? '—' }}</p>
             </div>
             {{-- ✅ Connected — goes to Faculty › Create Courses only --}}
             <a href="{{ route('faculty.create') }}"><button class="btn-outline" type="button">Create Courses</button></a>
@@ -282,9 +287,13 @@
                                 </span>
                             </div>
                         </div>
-                        {{-- ✅ Connected — goes to Faculty › My Courses only --}}
-                        <a href="{{ route('faculty.courses') }}">
+                        {{-- ✅ Connected — goes to Faculty › My Courses Manage (per-course) --}}
+                        <a href="{{ route('faculty.courses.manage', $course->id ?? 1) }}">
                             <button class="btn-manage" type="button">Manage</button>
+                        </a>
+                        {{-- Analytics button: open faculty analytics scoped to this course --}}
+                        <a href="{{ route('faculty.analytics', ['course_id' => $course->id ?? null]) }}" style="margin-left:8px;">
+                            <button class="btn-manage" type="button">Analytics</button>
                         </a>
                     </div>
                 @empty
@@ -310,9 +319,8 @@
                     </div>
                     <div class="panel-body">
                         <div class="quick-actions">
-                            {{-- ⚠ Not connected — no actions yet --}}
-                            <button class="btn-quick" type="button">View Students</button>
-                            <button class="btn-quick" type="button">View Courses</button>
+                            <a class="btn-quick" href="{{ route('students.index') }}">View Students</a>
+                            <a class="btn-quick" href="{{ route('faculty.courses') }}">View Courses</a>
                         </div>
                     </div>
                 </div>

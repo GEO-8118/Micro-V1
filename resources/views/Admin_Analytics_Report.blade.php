@@ -343,11 +343,15 @@
             <input type="text" name="q" placeholder="Search">
         </form>
 
-        <a href="{{ route('profile.show') }}" class="avatar-btn" title="My Profile">
+        <a href="{{ route('admin.profile') }}" class="avatar-btn" title="My Profile">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V21.6h19.2V19.2c0-3.2-6.4-4.8-9.6-4.8z"/>
             </svg>
         </a>
+        <form action="{{ route('logout') }}" method="POST" style="display:inline-flex;align-items:center;">
+            @csrf
+            <button type="submit" style="background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;">Logout</button>
+        </form>
     </div>
 </nav>
 
@@ -454,12 +458,14 @@
             <div class="card-hd">
                 <span class="card-title">Enrollment by Courses</span>
             </div>
-            @foreach ($enrollmentByCourse as $row)
-            <div class="chart-row">
-                <div class="chart-lbl">{{ $row->label }} &ndash; {{ $row->value }}</div>
-                <div class="bar-track"><div class="bar-fill" style="width: {{ $row->percent }}%"></div></div>
-            </div>
-            @endforeach
+                <div id="enrollment-list">
+                @foreach ($enrollmentByCourse as $row)
+                <div class="chart-row" data-label="{{ $row->label }}" data-value="{{ $row->value }}" data-percent="{{ $row->percent }}">
+                    <div class="chart-lbl">{{ $row->label }} &ndash; <span class="val">{{ $row->value }}</span></div>
+                    <div class="bar-track"><div class="bar-fill" style="width: {{ $row->percent }}%"></div></div>
+                </div>
+                @endforeach
+                </div>
         </div>
 
         {{-- Completion Rate --}}
@@ -467,12 +473,14 @@
             <div class="card-hd">
                 <span class="card-title">Completion Rate</span>
             </div>
+            <div id="completion-list">
             @foreach ($completionRate as $row)
-            <div class="chart-row">
-                <div class="chart-lbl">{{ $row->label }} &ndash; {{ $row->value }}%</div>
+            <div class="chart-row" data-label="{{ $row->label }}" data-value="{{ $row->value }}" data-percent="{{ $row->percent }}">
+                <div class="chart-lbl">{{ $row->label }} &ndash; <span class="val">{{ $row->value }}%</span></div>
                 <div class="bar-track"><div class="bar-fill" style="width: {{ $row->percent }}%"></div></div>
             </div>
             @endforeach
+            </div>
         </div>
     </div>
 
@@ -487,6 +495,51 @@
         if (!section || section.classList.contains('locked')) return;
         section.classList.toggle('open');
     }
+
+    // Realtime polling for admin report
+    async function fetchReport() {
+        try {
+            const res = await fetch('{{ route('admin.report.live') }}', { headers: { 'Accept': 'application/json' } });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            // update stat cards
+            document.querySelectorAll('.stat-card')[0].querySelector('.stat-val').textContent = data.stats.total_students;
+            document.querySelectorAll('.stat-card')[1].querySelector('.stat-val').textContent = data.stats.badges_issued;
+            document.querySelectorAll('.stat-card')[2].querySelector('.stat-val').textContent = data.stats.faculty_total;
+            document.querySelectorAll('.stat-card')[3].querySelector('.stat-val').textContent = data.stats.course_score_avg + '%';
+
+            // update enrollment list
+            const enrollContainer = document.getElementById('enrollment-list');
+            if (enrollContainer) {
+                enrollContainer.innerHTML = '';
+                data.enrollmentByCourse.forEach(row => {
+                    const div = document.createElement('div');
+                    div.className = 'chart-row';
+                    div.innerHTML = `<div class="chart-lbl">${row.label} – <span class="val">${row.value}</span></div><div class="bar-track"><div class="bar-fill" style="width: ${row.percent}%"></div></div>`;
+                    enrollContainer.appendChild(div);
+                });
+            }
+
+            // update completion list
+            const compContainer = document.getElementById('completion-list');
+            if (compContainer) {
+                compContainer.innerHTML = '';
+                data.completionRate.forEach(row => {
+                    const div = document.createElement('div');
+                    div.className = 'chart-row';
+                    div.innerHTML = `<div class="chart-lbl">${row.label} – <span class="val">${row.value}%</span></div><div class="bar-track"><div class="bar-fill" style="width: ${row.percent}%"></div></div>`;
+                    compContainer.appendChild(div);
+                });
+            }
+        } catch (e) {
+            console.error('Failed to fetch report', e);
+        }
+    }
+
+    // initial fetch and poll every 5 seconds
+    fetchReport();
+    setInterval(fetchReport, 5000);
 </script>
 
 </body>

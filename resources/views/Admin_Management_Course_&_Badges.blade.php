@@ -330,11 +330,15 @@
             <input type="text" name="q" placeholder="Search">
         </form>
 
-        <a href="{{ route('profile.show') }}" class="avatar-btn" title="My Profile">
+        <a href="{{ route('admin.profile') }}" class="avatar-btn" title="My Profile">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V21.6h19.2V19.2c0-3.2-6.4-4.8-9.6-4.8z"/>
             </svg>
         </a>
+        <form action="{{ route('logout') }}" method="POST" style="display:inline-flex;align-items:center;">
+            @csrf
+            <button type="submit" style="background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;">Logout</button>
+        </form>
     </div>
 </nav>
 
@@ -425,8 +429,20 @@
             <div class="course-card-title">{{ $course->title }}</div>
 
             <div class="course-card-meta">
-                {{ $course->students }} Students . {{ $course->faculty }} Faculty .<br>
-                Badge: {{ $course->badge }}
+                {{ $course->students }} Students · {{ $course->faculty }} Faculty ·<br>
+                Badge: {{ $course->badge ?? '—' }}
+            </div>
+
+            {{-- Status / actions --}}
+            <div style="margin-top:12px;font-size:0.85rem;color:#374151;display:flex;align-items:center;gap:12px;">
+                <div style="font-weight:700;color:#0d1b6e;">Status:</div>
+                <div style="padding:6px 10px;border-radius:10px;background:#f3f4f6;color:#111827;font-weight:700;">{{ $course->status ?? 'Unknown' }}</div>
+                @if (strtolower($course->status ?? '') === 'pending')
+                    <form action="{{ route('admin.courses.approve', $course->id) }}" method="POST" style="margin-left:auto;">
+                        @csrf
+                        <button type="submit" style="background:#10b981;border:none;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;">Approve</button>
+                    </form>
+                @endif
             </div>
 
             <div class="progress-track">

@@ -468,11 +468,15 @@
             <input type="text" name="q" placeholder="Search">
         </form>
 
-        <a href="{{ route('profile.show') }}" class="avatar-btn" title="My Profile">
+        <a href="{{ route('admin.profile') }}" class="avatar-btn" title="My Profile">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V21.6h19.2V19.2c0-3.2-6.4-4.8-9.6-4.8z"/>
             </svg>
         </a>
+        <form action="{{ route('logout') }}" method="POST" style="display:inline-flex;align-items:center;">
+            @csrf
+            <button type="submit" style="background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;">Logout</button>
+        </form>
     </div>
 </nav>
 
@@ -564,20 +568,46 @@
     {{-- ── STAT CARDS ──────────────────────────────────────────────────── --}}
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-val">{{ $stats['total_students'] }}</div>
-            <div class="stat-lbl">Total Students</div>
+            <div class="stat-val" id="live-active-users">0</div>
+            <div class="stat-lbl">Active Users</div>
         </div>
         <div class="stat-card">
-            <div class="stat-val">{{ $stats['badges_issued'] }}</div>
-            <div class="stat-lbl">Badges Issued</div>
+            <div class="stat-val" id="live-events-today">0</div>
+            <div class="stat-lbl">Events Today</div>
         </div>
         <div class="stat-card">
-            <div class="stat-val">{{ $stats['course_score_avg'] }}%</div>
-            <div class="stat-lbl">Course Score Avg</div>
+            <div class="stat-val" id="live-enrollments-today">0</div>
+            <div class="stat-lbl">Enrollments Today</div>
         </div>
         <div class="stat-card">
-            <div class="stat-val">{{ $stats['students_enrolled'] }}</div>
-            <div class="stat-lbl">Students Enrolled</div>
+            <div class="stat-val" id="live-badges-today">0</div>
+            <div class="stat-lbl">Badges Today</div>
+        </div>
+    </div>
+
+    <div class="two-col" style="margin-bottom: 18px;">
+        <div class="card">
+            <div class="card-hd">
+                <span class="card-title">Live Monitoring Feed</span>
+            </div>
+            <div id="live-activity-list" class="badges-grid"></div>
+        </div>
+        <div class="card">
+            <div class="card-hd">
+                <span class="card-title">Current Platform Snapshot</span>
+            </div>
+            <div class="chart-row">
+                <div class="chart-lbl">Students on platform &ndash; {{ $stats['total_students'] }}</div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-lbl">Badges issued &ndash; {{ $stats['badges_issued'] }}</div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-lbl">Average quiz score &ndash; {{ $stats['course_score_avg'] }}%</div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-lbl">Enrollments recorded &ndash; {{ $stats['students_enrolled'] }}</div>
+            </div>
         </div>
     </div>
 
@@ -659,15 +689,57 @@
 
 {{-- ── SCRIPTS ─────────────────────────────────────────────────────────── --}}
 <script>
-    /**
-     * Accordion toggle — mirrors Image 1 module expand/collapse.
-     * Clicking the section header toggles the .open class.
-     * Locked sections are ignored.
-     */
     function toggleSection(id) {
         const section = document.getElementById(id);
         if (!section || section.classList.contains('locked')) return;
         section.classList.toggle('open');
+    }
+
+    // Use Server-Sent Events for realtime monitoring updates
+    if (typeof(EventSource) !== 'undefined') {
+        const es = new EventSource('{{ route('monitoring.stream') }}');
+        es.onmessage = function(e) {
+            try {
+                const data = JSON.parse(e.data);
+                if (data.stats) {
+                    const a = data.stats;
+                    const elA = document.getElementById('live-active-users');
+                    const elE = document.getElementById('live-events-today');
+                    const elEn = document.getElementById('live-enrollments-today');
+                    const elB = document.getElementById('live-badges-today');
+                    if (elA) elA.textContent = a.active_users ?? 0;
+                    if (elE) elE.textContent = a.events_today ?? 0;
+                    if (elEn) elEn.textContent = a.enrollments_today ?? 0;
+                    if (elB) elB.textContent = a.badges_today ?? 0;
+                }
+
+                if (data.activity) {
+                    const list = document.getElementById('live-activity-list');
+                    if (list) {
+                        list.innerHTML = '';
+                        data.activity.forEach(item => {
+                            const card = document.createElement('div');
+                            card.className = 'badge-card';
+                            card.innerHTML = `<div class="badge-name">${item.title}</div><div class="badge-count">${item.detail} · ${item.time}</div>`;
+                            list.appendChild(card);
+                        });
+                    }
+                }
+
+                if (data.academySvg) {
+                    const wrap = document.getElementById('academy-chart-wrap');
+                    if (wrap) {
+                        wrap.innerHTML = data.academySvg;
+                    }
+                }
+            } catch (err) {
+                console.error('Realtime parse error', err);
+            }
+        };
+        es.onerror = function() { console.warn('Realtime stream error'); };
+    } else {
+        // fallback to polling if SSE not supported
+        setInterval(function(){ fetch('{{ route('monitoring.live') }}').then(r=>r.json()).then(d=>console.log('polled',d)).catch(()=>{}); }, 15000);
     }
 </script>
 

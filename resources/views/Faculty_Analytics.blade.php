@@ -144,6 +144,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>
             @endunless
         </a>
+        <form action="{{ route('logout') }}" method="POST" style="display:inline-flex;align-items:center;">
+            @csrf
+            <button type="submit" style="background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;">Logout</button>
+        </form>
     </div>
 </header>
 
@@ -206,8 +210,8 @@
                 <span class="watermark">
                     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="4"/><path d="M1 21c0-4 3.5-7 8-7s8 3 8 7"/><circle cx="17" cy="9" r="3"/><path d="M17 14c3.3 0 6 2.2 6 5" stroke="currentColor" stroke-width="2" fill="none"/></svg>
                 </span>
-                <span class="num">{{ $stats['total_learners'] ?? 0 }}</span>
-                <span class="label">Total Learners</span>
+                <span class="num" id="faculty-live-active-users">{{ $onlineNow ?? 0 }}</span>
+                <span class="label">Live Learners</span>
             </div>
             <div class="g-card gold">
                 <span class="watermark">
@@ -222,6 +226,16 @@
                 </span>
                 <span class="num">{{ $stats['lessons_done'] ?? 0 }}</span>
                 <span class="label">Lessons Completed</span>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-bottom: 24px;">
+            <div class="panel-head">
+                <span>Live Monitoring Feed</span>
+                <span class="range">Auto-refreshing</span>
+            </div>
+            <div class="panel-body">
+                <div id="faculty-live-activity" class="legend-box" style="min-width: unset;"></div>
             </div>
         </section>
 
@@ -246,11 +260,13 @@
                         $maxV  = max(30, (int) ceil(($points->max('value') ?? 0) / 10) * 10);
                         $n     = max($points->count() - 1, 1);
                         $coords = $points->values()->map(function ($p, $i) use ($padL, $padT, $plotW, $plotH, $maxV, $n) {
+                            $val = is_array($p) ? ($p['value'] ?? 0) : ($p->value ?? 0);
+                            $label = is_array($p) ? ($p['label'] ?? '') : ($p->label ?? '');
                             return [
                                 'x' => $padL + ($plotW * $i / $n),
-                                'y' => $padT + $plotH - ($plotH * ($p['value'] ?? 0) / $maxV),
-                                'label' => $p['label'] ?? '',
-                                'value' => $p['value'] ?? 0,
+                                'y' => $padT + $plotH - ($plotH * ($val) / $maxV),
+                                'label' => $label,
+                                'value' => $val,
                             ];
                         });
                         $lineStr = $coords->map(fn ($c) => round($c['x'], 1).','.round($c['y'], 1))->implode(' ');
@@ -259,8 +275,8 @@
                     @endphp
 
                     @if($points->isNotEmpty())
-                        <div class="area-chart-wrap">
-                        <svg viewBox="0 0 {{ $W }} {{ $H }}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Total academy statistics over time">
+                        <div id="academy-chart-wrap" class="area-chart-wrap">
+                        <svg id="academy-chart-svg" viewBox="0 0 {{ $W }} {{ $H }}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Total academy statistics over time">
                             {{-- horizontal gridlines + y labels --}}
                             @for($v = 0; $v <= $maxV; $v += 10)
                                 @php $gy = $padT + $plotH - ($plotH * $v / $maxV); @endphp
@@ -334,8 +350,8 @@
 
                     @if($success->isNotEmpty())
                         <div class="donut-flex">
-                            <div class="donut-wrap">
-                                <svg width="190" height="190" viewBox="0 0 190 190" role="img" aria-label="Learner success breakdown">
+                            <div id="learner-success-wrap" class="donut-wrap">
+                                <svg id="learner-success-svg" width="190" height="190" viewBox="0 0 190 190" role="img" aria-label="Learner success breakdown">
                                     <g transform="rotate(-90 95 95)">
                                         @foreach($segments as $seg)
                                             <circle cx="95" cy="95" r="{{ $R }}" fill="none"
@@ -348,7 +364,7 @@
                                     <text x="95" y="110" text-anchor="middle" font-size="11" font-weight="700" fill="#6b7280">Learners</text>
                                 </svg>
                             </div>
-                            <div class="legend-box">
+                            <div id="learner-success-legend" class="legend-box">
                                 @foreach($segments as $seg)
                                     <div class="legend-item">
                                         <span class="legend-dot" style="background: {{ $seg['color'] }};"></span>
@@ -371,5 +387,177 @@
     </main>
 </div>
 
+<script>
+    function refreshFacultyMonitoring() {
+        fetch('{{ route('monitoring.live.db') }}')
+            .then(response => response.json())
+            .then(data => {
+                const active = document.getElementById('faculty-live-active-users');
+                if (active) active.textContent = data.stats.active_users;
+
+                const container = document.getElementById('faculty-live-activity');
+                if (!container) return;
+
+                container.innerHTML = '';
+                data.activity.slice(0, 5).forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'legend-item';
+                    row.innerHTML = `<div class="legend-dot" style="background:${item.type === 'event' ? '#13176b' : '#dba617'}"></div><div><div class="l-num">${item.title}</div><div class="l-text">${item.detail} · ${item.time}</div></div>`;
+                    container.appendChild(row);
+                });
+
+                // academy chart update
+                if (Array.isArray(data.academyStats) && data.academyStats.length) {
+                    renderAcademyChart(data.academyStats);
+                }
+
+                // learner success donut update
+                if (Array.isArray(data.learnerSuccess) && data.learnerSuccess.length) {
+                    // map to {label,count}
+                    const segs = data.learnerSuccess.map(s => ({ label: s.label || s.name || '', count: Number(s.count || 0) }));
+                    renderLearnerDonut(segs);
+                }
+            })
+            .catch(() => {
+                const container = document.getElementById('faculty-live-activity');
+                if (container) {
+                    container.innerHTML = '<div class="empty-state">Monitoring feed unavailable.</div>';
+                }
+            });
+    }
+
+    if (typeof(EventSource) !== 'undefined') {
+        const es = new EventSource('{{ route('monitoring.stream') }}');
+        es.onmessage = function(e) {
+            try {
+                const data = JSON.parse(e.data);
+                if (data.stats) {
+                    const active = document.getElementById('faculty-live-active-users');
+                    if (active) active.textContent = data.stats.active_users ?? 0;
+                }
+                if (data.activity) {
+                    const container = document.getElementById('faculty-live-activity');
+                    if (container) {
+                        container.innerHTML = '';
+                        (data.activity||[]).slice(0,5).forEach(item => {
+                            const row = document.createElement('div');
+                            row.className = 'legend-item';
+                            row.innerHTML = `<div class="legend-dot" style="background:${item.type === 'event' ? '#13176b' : '#dba617'}"></div><div><div class="l-num">${item.title}</div><div class="l-text">${item.detail} · ${item.time}</div></div>`;
+                            container.appendChild(row);
+                        });
+                    }
+                }
+
+                if (Array.isArray(data.academyStats) && data.academyStats.length) {
+                    renderAcademyChart(data.academyStats);
+                } else if (data.academySvg) {
+                    const awrap = document.getElementById('academy-chart-wrap'); if (awrap) awrap.innerHTML = data.academySvg;
+                }
+
+                if (Array.isArray(data.learnerSuccess) && data.learnerSuccess.length) {
+                    const segs = data.learnerSuccess.map(s => ({ label: s.label || s.name || '', count: Number(s.count || 0) }));
+                    renderLearnerDonut(segs);
+                }
+            } catch (err) { console.error('Faculty stream parse error', err); }
+        };
+        es.onerror = function() { console.warn('Faculty stream error'); };
+    } else {
+        refreshFacultyMonitoring();
+        setInterval(refreshFacultyMonitoring, 15000);
+    }
+
+    // Render helpers for academy chart + learner donut
+    function renderAcademyChart(points) {
+        const W = 720, H = 260;
+        const padL = 40, padR = 30, padT = 34, padB = 44;
+        const plotW = W - padL - padR, plotH = H - padT - padB;
+        const values = points.map(p => Number(p.value || 0));
+        const labels = points.map(p => p.label || '');
+        const maxV = Math.max(30, Math.ceil((Math.max(...values) || 0) / 10) * 10);
+        const n = Math.max(points.length - 1, 1);
+
+        const coords = points.map((p, i) => {
+            const val = Number(p.value || 0);
+            const x = padL + (plotW * i / n);
+            const y = padT + plotH - (plotH * val / maxV);
+            return { x, y, label: p.label || '', value: val };
+        });
+
+        const lineStr = coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+        const areaStr = `${lineStr} ${ (padL + plotW).toFixed(1) },${ (padT + plotH) } ${ padL },${ (padT + plotH) }`;
+        const peak = coords.reduce((a, b) => a.value > b.value ? a : b, coords[0] || {value:0,x:padL,y:padT});
+
+        let svg = '';
+        // gridlines
+        for (let v = 0; v <= maxV; v += 10) {
+            const gy = padT + plotH - (plotH * v / maxV);
+            svg += `<line x1="${padL}" y1="${gy}" x2="${padL + plotW}" y2="${gy}" stroke="#e5e7eb" stroke-width="1"/>`;
+            svg += `<text x="${padL - 10}" y="${gy + 4}" text-anchor="end" font-size="11" font-weight="700" fill="#6b7280">${v}</text>`;
+        }
+        // area + line
+        svg += `<polygon points="${areaStr}" fill="#13176b" opacity="0.12"/>`;
+        svg += `<polyline points="${lineStr}" fill="none" stroke="#13176b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+        // dots + labels
+        coords.forEach(c => {
+            svg += `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3.5" fill="#fff" stroke="#13176b" stroke-width="2"/>`;
+            svg += `<text x="${c.x.toFixed(1)}" y="${padT + plotH + 18}" text-anchor="middle" font-size="10" font-weight="700" fill="#6b7280">${c.label}</text>`;
+        });
+        // peak callout
+        svg += `<circle cx="${peak.x.toFixed(1)}" cy="${peak.y.toFixed(1)}" r="5" fill="#dba617" stroke="#fff" stroke-width="2"/>`;
+        const bxW = 120, bxH = 40;
+        const bx = Math.min(Math.max(peak.x - bxW - 14, padL), padL + plotW - bxW);
+        const by = Math.max(peak.y - bxH - 6, 4);
+        svg += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bxW}" height="${bxH}" rx="8" fill="#fff" stroke="#e5e7eb"/>`;
+        svg += `<text x="${(bx+12).toFixed(1)}" y="${(by+17).toFixed(1)}" font-size="11" font-weight="800" fill="#13176b">${peak.label.replace(/\n/g,' ')}</text>`;
+        svg += `<text x="${(bx+12).toFixed(1)}" y="${(by+32).toFixed(1)}" font-size="11" font-weight="700" fill="#6b7280">Amount: ${peak.value}</text>`;
+
+        const wrap = document.getElementById('academy-chart-wrap');
+        if (wrap) {
+            const existing = wrap.querySelector('svg');
+            if (existing) existing.innerHTML = svg; else {
+                wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Total academy statistics over time">${svg}</svg>`;
+            }
+        }
+    }
+
+    function renderLearnerDonut(segments) {
+        const colors = ['#13176b', '#dba617', '#7fe9e3'];
+        const R = 70; const CIRC = 2 * Math.PI * R;
+        let offset = 0;
+        let total = segments.reduce((s, it) => s + (it.count||0), 0) || 1;
+
+        let svg = '';
+        svg += `<g transform="rotate(-90 95 95)">`;
+        segments.forEach((seg, i) => {
+            const len = CIRC * ((seg.count||0) / total);
+            const gap = CIRC - len;
+            svg += `<circle cx="95" cy="95" r="${R}" fill="none" stroke="${colors[i%colors.length]}" stroke-width="34" stroke-dasharray="${len.toFixed(2)} ${gap.toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"/>`;
+            offset += len;
+        });
+        svg += `</g>`;
+        svg += `<text x="95" y="90" text-anchor="middle" font-size="26" font-weight="800" fill="#13176b">${segments.reduce((s,it)=>s+(it.count||0),0)}</text>`;
+        svg += `<text x="95" y="110" text-anchor="middle" font-size="11" font-weight="700" fill="#6b7280">Learners</text>`;
+
+        const wrap = document.getElementById('learner-success-wrap');
+        const legend = document.getElementById('learner-success-legend');
+        if (wrap) {
+            const svgEl = wrap.querySelector('svg') || wrap;
+            if (svgEl.tagName.toLowerCase() === 'svg') svgEl.innerHTML = svg; else wrap.innerHTML = `<svg width="190" height="190" viewBox="0 0 190 190">${svg}</svg>`;
+        }
+        if (legend) {
+            legend.innerHTML = '';
+            segments.forEach((seg, i) => {
+                const div = document.createElement('div');
+                div.className = 'legend-item';
+                const dot = document.createElement('span'); dot.className='legend-dot'; dot.style.background = colors[i%colors.length];
+                div.appendChild(dot);
+                const span = document.createElement('span');
+                span.innerHTML = `<span class="l-num">${seg.count}</span><br><span class="l-text">${seg.label}</span>`;
+                div.appendChild(span);
+                legend.appendChild(div);
+            });
+        }
+    }
+</script>
 </body>
 </html>

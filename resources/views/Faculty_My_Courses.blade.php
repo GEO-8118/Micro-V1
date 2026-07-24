@@ -258,6 +258,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>
             @endunless
         </a>
+        <form action="{{ route('logout') }}" method="POST" style="display:inline-flex;align-items:center;">
+            @csrf
+            <button type="submit" style="background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;">Logout</button>
+        </form>
     </div>
 </header>
 
@@ -326,7 +330,7 @@
                     <button class="btn-pill" type="button">{{ $course->status ?? 'Draft' }}</button>
                     <button class="btn-pill" type="button">Edit</button>
                 </div>
-                <button class="btn-pill" type="button">Analytics</button>
+                <a href="{{ route('faculty.analytics', ['course_id' => $course->id ?? null]) }}"><button class="btn-pill" type="button">Analytics</button></a>
             </div>
         </section>
 
@@ -515,7 +519,7 @@
         {{-- ══════════════ QUIZ BUILDER MODE — "Add Quiz : <module>" ══════════════ --}}
 
         {{-- ✅ Back to the Managing Course screen --}}
-        <a class="back-link" href="{{ route('faculty.courses.manage', $course->id) }}">‹ Back to Modules</a>
+        <a class="back-link" href="{{ route('faculty.courses.manage', $course->id ?? 1) }}">‹ Back to Modules</a>
         <h2 class="quiz-head">{{ ($quiz ?? null) ? 'Edit' : 'Add' }} Quiz : {{ $moduleTitle }}</h2>
 
         {{-- ✅ Real form — Save Quiz stores everything (session for now) and
@@ -686,7 +690,7 @@
                 </div>
                 <div class="card-actions">
                     {{-- ✅ Manage → Managing Course screen for THIS course (same blade, manage mode) --}}
-                    <a href="{{ route('faculty.courses.manage', $course->id) }}" class="btn-action">Manage</a>
+                    <a href="{{ route('faculty.courses.manage', $course->id ?? 1) }}" class="btn-action">Manage</a>
                     {{-- ⚠ Not connected — no action yet --}}
                     <button class="btn-action" type="button">Analytics</button>
                 </div>

@@ -174,6 +174,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>
             @endunless
         </a>
+        <form action="{{ route('logout') }}" method="POST" style="display:inline-flex;align-items:center;">
+            @csrf
+            <button type="submit" style="background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;">Logout</button>
+        </form>
     </div>
 </header>
 
@@ -238,28 +242,28 @@
             <div class="stat-card">
                 <div class="stat-top">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h12v20l-6-4-6 4V2z"/></svg>
-                    <span class="num">{{ $stats['active_courses'] ?? 0 }}</span>
+                    <span class="num" id="student-active-courses">{{ $stats['active_courses'] ?? 0 }}</span>
                 </div>
                 <div class="label">Active Courses</div>
             </div>
             <div class="stat-card">
                 <div class="stat-top">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6 7 1-5 5 1.5 7L12 17l-6.5 4L7 14 2 9l7-1 3-6z"/></svg>
-                    <span class="num">{{ $stats['badges_earned'] ?? 0 }}</span>
+                    <span class="num" id="student-badges-earned">{{ $stats['badges_earned'] ?? 0 }}</span>
                 </div>
                 <div class="label">Badges earned</div>
             </div>
             <div class="stat-card">
                 <div class="stat-top">
                     <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l3 6 7 1-5 5 1.5 7L12 17l-6.5 4L7 14 2 9l7-1 3-6z" fill="var(--navy)"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <span class="num">{{ $stats['score_avg'] ?? 0 }}%</span>
+                    <span class="num" id="student-score-avg">{{ $stats['score_avg'] ?? 0 }}%</span>
                 </div>
                 <div class="label">Course Score Avg</div>
             </div>
             <div class="stat-card">
                 <div class="stat-top">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-                    <span class="num">{{ $stats['hours_enrolled'] ?? 0 }}</span>
+                    <span class="num" id="student-hours-enrolled">{{ $stats['hours_enrolled'] ?? 0 }}</span>
                 </div>
                 <div class="label">Hours Enrolled</div>
             </div>
@@ -273,6 +277,7 @@
                     <h3>Active Courses</h3>
                     <a href="{{ route('courses.browse') }}">View All</a>
                 </div>
+                <div id="student-active-courses-list">
                 @forelse (($activeCourses ?? []) as $course)
                     @php /** @var object{title:string,meta:?string,thumbnail_url:?string,percent:int|float} $course */ @endphp
                     <div class="course-line">
@@ -288,13 +293,14 @@
                 @empty
                     <p class="empty-state">No active courses right now.</p>
                 @endforelse
+                </div>
             </div>
 
             <div class="panel">
                 <div class="panel-head-row">
                     <h3>Recent Badges</h3>
                 </div>
-                <div class="badges-mini-grid">
+                <div id="student-recent-badges" class="badges-mini-grid">
                     @forelse (($recentBadges ?? []) as $badge)
                         @php /** @var object{name:string,earned_count:int} $badge */ @endphp
                         <div class="badge-mini-card">
@@ -316,6 +322,7 @@
                 <div class="panel-head-row">
                     <h3>Enrollment by Courses</h3>
                 </div>
+                <div id="student-enrollment-list">
                 @forelse (($enrollmentByCourse ?? []) as $row)
                     @php /** @var object{label:string,value:int|float,percent:int|float} $row */ @endphp
                     <div class="metric-row">
@@ -325,12 +332,14 @@
                 @empty
                     <p class="empty-state">No enrollment data yet.</p>
                 @endforelse
+                </div>
             </div>
 
             <div class="panel">
                 <div class="panel-head-row">
                     <h3>Completion Rate</h3>
                 </div>
+                <div id="student-completion-list">
                 @forelse (($completionRate ?? []) as $row)
                     @php /** @var object{label:string,value:int|float,percent:int|float} $row */ @endphp
                     <div class="metric-row">
@@ -340,6 +349,7 @@
                 @empty
                     <p class="empty-state">No completion data yet.</p>
                 @endforelse
+                </div>
             </div>
 
         </div>
@@ -348,4 +358,46 @@
 </div>
 
 </body>
+<script>
+    function refreshStudentAnalytics() {
+        fetch('{{ route('analytics.live') }}')
+            .then(r => r.json())
+            .then(data => {
+                const s = data.stats || {};
+                const elActive = document.getElementById('student-active-courses');
+                const elBadges = document.getElementById('student-badges-earned');
+                const elScore = document.getElementById('student-score-avg');
+                const elHours = document.getElementById('student-hours-enrolled');
+                if (elActive) elActive.textContent = s.active_courses ?? 0;
+                if (elBadges) elBadges.textContent = s.badges_earned ?? 0;
+                if (elScore) elScore.textContent = (s.score_avg ?? 0) + '%';
+                if (elHours) elHours.textContent = s.hours_enrolled ?? 0;
+            })
+            .catch(() => {
+                // ignore failures silently for now
+            });
+    }
+
+    if (typeof(EventSource) !== 'undefined') {
+        const es = new EventSource('{{ route('analytics.stream') }}');
+        es.onmessage = function(e) {
+            try {
+                const data = JSON.parse(e.data);
+                const s = data.stats || {};
+                const elActive = document.getElementById('student-active-courses');
+                const elBadges = document.getElementById('student-badges-earned');
+                const elScore = document.getElementById('student-score-avg');
+                const elHours = document.getElementById('student-hours-enrolled');
+                if (elActive) elActive.textContent = s.active_courses ?? 0;
+                if (elBadges) elBadges.textContent = s.badges_earned ?? 0;
+                if (elScore) elScore.textContent = (s.score_avg ?? 0) + '%';
+                if (elHours) elHours.textContent = s.hours_enrolled ?? 0;
+            } catch (err) { console.error('Student stream parse error', err); }
+        };
+        es.onerror = function() { console.warn('Student stream error'); };
+    } else {
+        refreshStudentAnalytics();
+        setInterval(refreshStudentAnalytics, 10000);
+    }
+</script>
 </html>

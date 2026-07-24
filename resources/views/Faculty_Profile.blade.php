@@ -72,8 +72,13 @@
     .search-box{display:flex;align-items:center;gap:10px;background:#fff;border-radius:999px;padding:10px 18px;min-width:240px;color:var(--muted);}
     .search-box input{border:none;outline:none;font-size:15px;width:100%;color:var(--ink);background:transparent;}
     .icon-cluster{display:flex;align-items:center;gap:14px;}
-    .icon-circle{width:42px;height:42px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+    .icon-circle{width:42px;height:42px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 6px 16px rgba(19,23,107,0.12);transition:transform .2s ease, box-shadow .2s ease, background-color .2s ease;}
+    .icon-circle:hover{transform:translateY(-1px);box-shadow:0 10px 20px rgba(19,23,107,0.16);}
     .icon-circle svg{width:22px;height:22px;color:var(--navy);}
+    .notification-btn{position:relative;width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg, #ffffff 0%, #eef4ff 100%);border:1px solid rgba(19,23,107,0.08);}
+    .notification-btn:hover{background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);}
+    .notification-btn svg{width:21px;height:21px;}
+    .notification-badge{position:absolute;top:5px;right:5px;width:10px;height:10px;border-radius:50%;background:#ef4444;border:2px solid #fff;box-shadow:0 0 0 2px rgba(239,68,68,0.18);} 
 
     /* Layout */
     .layout{display:grid;grid-template-columns:264px 1fr;min-height:calc(100vh - 74px);align-items:start;}
@@ -98,8 +103,11 @@
     .page-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:28px;}
     .page-head h2{font-size:30px;margin:0 0 6px;color:var(--navy);}
     .page-head p{margin:0;color:var(--muted);font-size:15px;font-weight:600;}
+    .page-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
     .btn-edit-profile{background:#fff;border:1.5px solid var(--line);color:var(--navy);font-weight:800;padding:12px 28px;border-radius:12px;font-size:15px;box-shadow:var(--shadow);transition:border-color .2s;}
     .btn-edit-profile:hover{border-color:var(--navy);}
+    .btn-logout{background:#fff1f2;border:1.5px solid #fecdd3;color:#b91c1c;font-weight:800;padding:12px 28px;border-radius:12px;font-size:15px;box-shadow:var(--shadow);}
+    .btn-logout:hover{background:#fee2e2;border-color:#f43f5e;}
 
     /* Panels (same pattern as dashboard side panels) */
     .panel{border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:28px;background:#fff;}
@@ -362,8 +370,9 @@
 
     <div class="icon-cluster">
         {{-- ⚠ Not connected — no notifications page yet --}}
-        <a href="#" class="icon-circle" title="Notifications">
+        <a href="#" class="icon-circle notification-btn" title="Notifications">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <span class="notification-badge" aria-hidden="true"></span>
         </a>
         {{-- This page IS the profile — icon just stays here --}}
         <a href="#" class="icon-circle" title="{{ $user->name ?? 'Profile' }}"
@@ -429,8 +438,14 @@
                 <h2>My Profile</h2>
                 <p>Manage your Personal Information and Account Preferences</p>
             </div>
-            {{-- ✅ Functioning — opens the Edit Profile drawer --}}
-            <button class="btn-edit-profile" type="button" onclick="openEditModal('personal')">Edit Profile</button>
+            <div class="page-actions">
+                <form action="{{ route('logout') }}" method="POST" style="display:inline;">
+                    @csrf
+                    <button class="btn-logout" type="submit">Logout</button>
+                </form>
+                {{-- ✅ Functioning — opens the Edit Profile drawer --}}
+                <button class="btn-edit-profile" type="button" onclick="openEditModal('personal')">Edit Profile</button>
+            </div>
         </div>
 
         {{-- ══════════════ ① IDENTITY CARD ══════════════ --}}
@@ -459,6 +474,10 @@
                     <span class="id-item">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                         {{ $user->location ?? '—' }}
+                    </span>
+                    <span class="id-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h12"/><path d="M6 13h8"/></svg>
+                        {{ $user->user_code ?? '—' }}
                     </span>
                 </div>
             </div>

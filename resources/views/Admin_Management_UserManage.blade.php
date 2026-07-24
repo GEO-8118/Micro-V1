@@ -347,6 +347,68 @@
         .status-pending   { color: #b45309; }
         .status-published { color: var(--navy); }
         .status-draft     { color: var(--text-muted); }
+
+        .user-tools {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .user-search-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            flex: 1;
+            max-width: 580px;
+        }
+
+        .user-search-form input,
+        .user-search-form select {
+            border: 1.5px solid var(--border);
+            border-radius: 999px;
+            padding: 9px 14px;
+            font-size: 0.875rem;
+            color: var(--text-main);
+            background: var(--white);
+        }
+
+        .user-search-form button {
+            border: none;
+            border-radius: 999px;
+            padding: 9px 14px;
+            background: var(--navy);
+            color: var(--white);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .code-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #eef3ff;
+            color: var(--navy);
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 0.775rem;
+            font-weight: 700;
+        }
+
+        .empty-state {
+            width: 100%;
+            max-width: 780px;
+            padding: 24px;
+            border-radius: var(--radius-card);
+            background: var(--white);
+            border: 1.5px solid var(--border);
+            color: var(--text-muted);
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -372,11 +434,15 @@
             <input type="text" name="q" placeholder="Search">
         </form>
 
-        <a href="{{ route('profile.show') }}" class="avatar-btn" title="My Profile">
+        <a href="{{ route('admin.profile') }}" class="avatar-btn" title="My Profile">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8V21.6h19.2V19.2c0-3.2-6.4-4.8-9.6-4.8z"/>
             </svg>
         </a>
+        <form action="{{ route('logout') }}" method="POST" style="display:inline-flex;align-items:center;">
+            @csrf
+            <button type="submit" style="background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;">Logout</button>
+        </form>
     </div>
 </nav>
 
@@ -455,47 +521,52 @@
 {{-- ════════════════════════════════════ MAIN CONTENT ═════════════════════════════ --}}
 <main class="main">
 
-    {{-- ── SEARCH USER ─────────────────────────────────────────────────── --}}
-    <div class="user-search-wrap">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input type="text" placeholder="Search User">
+    <div class="user-tools">
+        <form class="user-search-form" action="{{ route('admin.usermanagement') }}" method="GET">
+            <input type="text" name="q" value="{{ $q ?? '' }}" placeholder="Search by name, email, or user code">
+            <select name="sort">
+                <option value="created_at" {{ ($sort ?? 'created_at') === 'created_at' ? 'selected' : '' }}>Newest</option>
+                <option value="name" {{ ($sort ?? '') === 'name' ? 'selected' : '' }}>Name</option>
+                <option value="role" {{ ($sort ?? '') === 'role' ? 'selected' : '' }}>Role</option>
+                <option value="user_code" {{ ($sort ?? '') === 'user_code' ? 'selected' : '' }}>User Code</option>
+            </select>
+            <input type="hidden" name="direction" value="{{ $direction === 'asc' ? 'desc' : 'asc' }}">
+            <button type="submit">Filter</button>
+        </form>
     </div>
 
-    {{-- ── COURSES TABLE ────────────────────────────────────────────────── --}}
-    <div class="table-card">
-        <table class="um-table">
-            <thead>
-                <tr>
-                    <th>Courses</th>
-                    <th>Faculty</th>
-                    <th>Students</th>
-                    <th>Badge</th>
-                    <th>Badge</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($courses as $course)
-                <tr>
-                    <td>{{ $course->title }}</td>
-                    <td>{{ $course->faculty }}</td>
-                    <td>{{ $course->students }}</td>
-                    <td>
-                        <span class="status-badge {{ $course->badge_status === 'Active' ? 'status-active' : 'status-pending' }}">
-                            {{ $course->badge_status }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="status-badge {{ $course->publish_status === 'Published' ? 'status-published' : 'status-draft' }}">
-                            {{ $course->publish_status }}
-                        </span>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
+    @if ($users->isEmpty())
+        <div class="empty-state">No users found for the current filter.</div>
+    @else
+        <div class="table-card">
+            <table class="um-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>User Code</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($users as $user)
+                    <tr>
+                        <td>{{ trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: ($user->username ?? '—') }}</td>
+                        <td>{{ $user->email }}</td>
+                        <td>{{ match ((int) ($user->role_id ?? 3)) {1 => 'Administrator', 2 => 'Faculty', 3 => 'Learner', default => 'Learner'} }}</td>
+                        <td><span class="code-pill">{{ $user->user_code ?? '—' }}</span></td>
+                        <td>
+                            <span class="status-badge {{ $user->is_active ? 'status-active' : 'status-pending' }}">
+                                {{ $user->is_active ? 'Active' : 'Inactive' }}
+                            </span>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 
 </main>
 </div>{{-- /layout --}}

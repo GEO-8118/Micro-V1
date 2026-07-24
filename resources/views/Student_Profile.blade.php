@@ -343,6 +343,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>
             @endunless
         </a>
+        <form action="{{ route('logout') }}" method="POST" style="display:inline-flex;align-items:center;">
+            @csrf
+            <button type="submit" style="background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;">Logout</button>
+        </form>
     </div>
 </header>
 
@@ -460,6 +464,12 @@
                                         {{ $user->location }}
                                     </span>
                                 @endif
+                                @if($user->user_code ?? null)
+                                    <span>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h12"/><path d="M6 13h8"/></svg>
+                                        {{ $user->user_code }}
+                                    </span>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -496,6 +506,30 @@
                         <div class="detail-row">
                             <span class="label">Bio:</span>
                             <span class="value">{{ $user->bio }}</span>
+                        </div>
+                    @endif
+                    @if($user->age ?? null)
+                        <div class="detail-row">
+                            <span class="label">Age:</span>
+                            <span class="value">{{ $user->age }}</span>
+                        </div>
+                    @endif
+                    @if($user->school_enrolled ?? null)
+                        <div class="detail-row">
+                            <span class="label">School Enrolled:</span>
+                            <span class="value">{{ $user->school_enrolled }}</span>
+                        </div>
+                    @endif
+                    @if($user->hobby ?? null)
+                        <div class="detail-row">
+                            <span class="label">Hobby:</span>
+                            <span class="value">{{ $user->hobby }}</span>
+                        </div>
+                    @endif
+                    @if($user->address ?? null)
+                        <div class="detail-row">
+                            <span class="label">Address:</span>
+                            <span class="value">{{ $user->address }}</span>
                         </div>
                     @endif
                 </div>
